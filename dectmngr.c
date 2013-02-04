@@ -9,51 +9,20 @@
 #include <stdlib.h>
 #include <ctype.h>
 #include <string.h>
+#include <dectshimdrv.h>
+#include <ApiFpProject.h>
+
 
 /* globals */
 int apifd;
+
+extern unsigned char DectNvsData[];
 
 /* defines */
 #define DECTDBG_FILE "/dev/dectdbg"
 #define API_FILE "/dev/dect"
 
 #define API_FP_MM_SET_REGISTRATION_MODE_REQ 0x4105
-
-
-
-/* Global mail primitives:                                                                                                                             
-  API_FP_MM_GET_ID_REQ = 0x4004,                                                                                                                       
-  API_FP_MM_GET_ID_CFM = 0x4005,                                                                                                                       
-  API_FP_MM_GET_MODEL_REQ = 0x4006,                                                                                                                    
-  API_FP_MM_GET_MODEL_CFM = 0x4007,                                                                                                                    
-  API_FP_MM_SET_ACCESS_CODE_REQ = 0x4008,                                                                                                              
-  API_FP_MM_SET_ACCESS_CODE_CFM = 0x4009,                                                                                                              
-  API_FP_MM_GET_ACCESS_CODE_REQ = 0x400A,                                                                                                              
-  API_FP_MM_GET_ACCESS_CODE_CFM = 0x400B,                                                                                                              
-  API_FP_MM_GET_REGISTRATION_COUNT_REQ = 0x4100,                                                                                                       
-  API_FP_MM_GET_REGISTRATION_COUNT_CFM = 0x4101,                                                                                                       
-  API_FP_MM_GET_HANDSET_IPUI_REQ = 0x4109,                                                                                                             
-  API_FP_MM_GET_HANDSET_IPUI_CFM = 0x410A,                                                                                                             
-  API_FP_MM_HANDSET_PRESENT_IND = 0x4108,                                                                                                              
-  API_FP_MM_STOP_PROTOCOL_REQ = 0x410B,                                                                                                                
-  API_FP_MM_START_PROTOCOL_REQ = 0x410D,                                                                                                               
-  API_FP_MM_HANDSET_DETACH_IND = 0x410E,                                                                                                               
-  API_FP_MM_EXT_HIGHER_LAYER_CAP2_REQ = 0x410C,                                                                                                        
-  API_FP_MM_SET_REGISTRATION_MODE_REQ = 0x4105,                                                                                                        
-  API_FP_MM_SET_REGISTRATION_MODE_CFM = 0x4106,                                                                                                        
-  API_FP_MM_REGISTRATION_COMPLETE_IND = 0x4107,                                                                                                        
-  API_FP_MM_DELETE_REGISTRATION_REQ = 0x4102,                                                                                                          
-  API_FP_MM_DELETE_REGISTRATION_CFM = 0x4103,                                                                                                          
-  API_FP_MM_HANDSET_DEREGISTED_IND = 0x410F,                                                                                                           
-  API_FP_MM_UNITDATA_REQ = 0x4180,                                                                                                                     
-  API_FP_MM_ALERT_BROADCAST_REQ = 0x4182,                                                                                                              
-  The global mail primitives MUST be defined in Global.h! */
-
-
-
-
-
-
 
 
 
@@ -593,11 +562,55 @@ static void dectDrvWrite(void *data, int size)
 }
 
 
+static void dectNvsCtlGetData( unsigned char *pNvsData )
+{
+   if ( pNvsData == NULL ) 
+   {   
+     printf("%s: error %d\n", __FUNCTION__, errno);
+      return;
+   }
+
+   memcpy( pNvsData, &DectNvsData[0], API_FP_LINUX_NVS_SIZE);
+}
+
+
+
+static int dect_init(void)
+{
+  int fd, r;
+  ApiFpLinuxInitReqType *t = NULL;
+  DECTSHIMDRV_INIT_PARAM parm;
+
+  fd = open("/dev/dectshim", O_RDWR);
+  
+  if (fd == -1) {
+    printf("%s: open error %d\n", __FUNCTION__, errno);
+    return -1;
+  }
+
+  r = ioctl(fd, DECTSHIMIOCTL_INIT_CMD, &parm);
+  if (r != 0) {
+    printf("%s: ioctl error %d\n", __FUNCTION__, errno);
+  }
+
+  close(fd);
+
+  
+  /* download the eeprom values to the DECT driver*/
+  t = (unsigned char*) malloc(sizeof(ApiFpLinuxInitReqType));
+  t->Primitive = API_FP_LINUX_INIT_REQ;
+  dectNvsCtlGetData(t->NvsData);
+  dectDrvWrite(t, sizeof(ApiFpLinuxInitReqType));
+  
+  return r;
+}
+
+
 
 
 int main(int argc, char **argv)
 {
-
+  int iflag = 0;
   int rflag = 0;
   int sflag = 0;
   int pflag = 0;
@@ -613,11 +626,14 @@ int main(int argc, char **argv)
 
   /* bosInit(); */
 
-  while ((c = getopt (argc, argv, "rsp")) != -1)
+  while ((c = getopt (argc, argv, "risp")) != -1)
     switch (c)
       {
       case 'r':
 	rflag=1;
+	break;
+      case 'i':
+	iflag=1;
 	break;
       case 's':
 	sflag=1;
@@ -643,6 +659,9 @@ int main(int argc, char **argv)
   for (index = optind; index < argc; index++)
     printf ("Non-option argument %s\n", argv[index]);
 
+
+  if(iflag)
+    dect_init();
 
   if(rflag)
     register_handsets_start();
