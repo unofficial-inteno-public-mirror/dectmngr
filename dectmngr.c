@@ -12,6 +12,7 @@
 #include <dectshimdrv.h>
 #include <ApiFpProject.h>
 #include <endpointdrv.h>
+#include <dectUtils.h>
 
 
 /* globals */
@@ -266,19 +267,37 @@ static int dect_init(void)
 }
 
 
+/* typedef struct { */
+/*   int packet_type; */
+/*   unsigned char data[API_FP_LINUX_MAX_MAIL_SIZE]; */
+/* } packet; */
+
+
+/* packet classify_packet(unsigned char buf); */
+
+
+/* packet classify_packet(unsigned char buf) { */
+
+  
+
+/* } */
+
+
+
 int daemonize(void) 
 {
 
   fd_set rd_fdset;
+  unsigned char buf[API_FP_LINUX_MAX_MAIL_SIZE];
+  int res, len, i;
+  fd_set rfds;
+  RosPrimitiveType primitive;
   
+
   FD_SET(apifd, &rd_fdset);
 
   /* main loop */
   while (1) {
-    
-    unsigned char buf[API_FP_LINUX_MAX_MAIL_SIZE];
-    int res, len, i;
-    fd_set rfds;
     
     memcpy(&rfds, &rd_fdset, sizeof(fd_set));;
     
@@ -300,6 +319,20 @@ int daemonize(void)
 	printf("\n");
 
       }
+
+      primitive = ((recDataType *) buf)->PrimitiveIdentifier;
+      
+      switch (primitive) {
+	
+      case API_FP_CC_SETUP_IND:
+	printf("API_FP_CC_SETUP_IND\n");
+	break;
+	
+      default:
+	printf("Unknown packet\n");
+	break;
+      }
+
     }
 
   }

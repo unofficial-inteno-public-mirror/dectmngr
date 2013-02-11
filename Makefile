@@ -13,8 +13,7 @@ CFLAGS += -I$(BUILD_DIR)/bcmkernel-4.12/4.12L.04/xChange/dslx_common/voice_res_g
 CFLAGS += -I$(BUILD_DIR)/bcmkernel-4.12/4.12L.04/xChange/dslx_common/xchg_common/bos/publicInc/
 CFLAGS += -I$(BUILD_DIR)/bcmkernel-4.12/4.12L.04/xChange/dslx_common/voice_res_gw/casCtl/inc/
 CFLAGS += -I$(BUILD_DIR)/bcmkernel-4.12/4.12L.04/xChange/dslx_common/xchg_drivers/inc
-CFLAGS += -DBOS_OS_LINUXUSER
-
+CFLAGS += -DBOS_OS_LINUXUSER -DBOS_CFG_TIME
 
 DECTD_DIR=$(BUILD_DIR)/bcmkernel-4.12/4.12L.04/userspace/private/apps/dectd
 
