@@ -16,6 +16,7 @@
 
 /* globals */
 int apifd;
+int fd_max;
 
 extern unsigned char DectNvsData[];
 
@@ -34,7 +35,37 @@ int register_handsets_stop(void);
 int ping_handsets(void);
 static void dectDrvWrite(void *data, int size);
 int write_frame(unsigned char *fr);
+int daemonize(void);
+static int open_file(int *fd_ptr, const char *filename);
+static void update_max(int sd);
 
+
+
+
+
+static int open_file(int *fd_ptr, const char *filename)
+{
+  //  *fd_ptr = open(filename, O_RDWR);
+  *fd_ptr = open(filename, O_RDWR | O_CREAT);
+
+  if (*fd_ptr == -1) {
+    fprintf(stderr, "open");
+    perror(filename);
+
+    return -1;
+  }
+
+  update_max(*fd_ptr);
+
+  return 0;
+}
+
+
+static void update_max(int sd)
+{
+  if (sd > fd_max)
+    fd_max = sd;
+}
 
 
 
@@ -235,6 +266,48 @@ static int dect_init(void)
 }
 
 
+int daemonize(void) 
+{
+
+  fd_set rd_fdset;
+  
+  FD_SET(apifd, &rd_fdset);
+
+  /* main loop */
+  while (1) {
+    
+    unsigned char buf[API_FP_LINUX_MAX_MAIL_SIZE];
+    int res, len, i;
+    fd_set rfds;
+    
+    memcpy(&rfds, &rd_fdset, sizeof(fd_set));;
+    
+    if (res = select(fd_max + 1, &rfds, NULL, NULL, NULL) < 0) {
+      perror("select");
+      return -1;
+    }
+
+    if (FD_ISSET(apifd, &rfds)) {
+    
+      len = read(apifd, buf, sizeof(buf));
+      
+      if (len > 0) {
+
+	/* debug printout */
+	printf("\n[RDECT][%04d] - ", len);
+	for (i = 0; i < len; i++)
+	  printf("%02x ", buf[i]);
+	printf("\n");
+
+      }
+    }
+
+  }
+
+  return 0;
+}
+
+
 
 
 int main(int argc, char **argv)
@@ -243,19 +316,19 @@ int main(int argc, char **argv)
   int rflag = 0;
   int sflag = 0;
   int pflag = 0;
-  int index;
-  int c;
+  int dflag = 0;
+  int index, ret , c;
 
-  if((apifd = open("/dev/dect", O_RDWR)) < 0) {
-    printf("dectmngr: open error %d\n", errno);
+
+  //  printf("dectmngr1 \n");
+  if (ret = open_file(&apifd, "/dev/dect") < 0)
     return -1;
-  }
 
   printf("dectmngr\n");
 
   /* bosInit(); */
 
-  while ((c = getopt (argc, argv, "risp")) != -1)
+  while ((c = getopt (argc, argv, "rispd")) != -1)
     switch (c)
       {
       case 'r':
@@ -269,6 +342,9 @@ int main(int argc, char **argv)
 	break;
       case 'p':
 	pflag=1;
+	break;
+      case 'd':
+	dflag=1;
 	break;
       case '?':
 	if (optopt == 'c')
@@ -300,6 +376,9 @@ int main(int argc, char **argv)
 
   if(pflag)
     ping_handsets();
+
+  if(dflag)
+    daemonize();
 
 
   return 0;
