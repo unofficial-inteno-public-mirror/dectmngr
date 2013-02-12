@@ -690,6 +690,27 @@ void connect_cfm(unsigned char *buf) {
 }
 
 
+void release_ind(unsigned char *buf) {  
+  ApiHandsetIdType handset;
+  unsigned char o_buf[5];
+  handset = ((ApiFpCcConnectCfmType*) buf)->CallReference.HandsetId;
+
+  /* write endpoint id to device */
+  
+  *(o_buf + 0) = ((API_FP_CC_RELEASE_RES & 0xff00) >> 8);
+  *(o_buf + 1) = ((API_FP_CC_RELEASE_RES & 0x00ff) >> 0);
+  *(o_buf + 2) = handset;
+  *(o_buf + 3) = 0;
+  *(o_buf + 4) = 0;
+
+  printf("API_FP_CC_RELEASE_RES\n");
+  dectDrvWrite(o_buf, 5);
+
+}
+
+
+
+
 
 void handle_packet(unsigned char *buf) {
 
@@ -710,6 +731,7 @@ void handle_packet(unsigned char *buf) {
 
   case API_FP_CC_RELEASE_IND:
     printf("API_FP_CC_RELEASE_IND\n");
+    release_ind(buf);
     break;
 
   case API_FP_CC_CONNECT_CFM:
