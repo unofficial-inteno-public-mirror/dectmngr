@@ -12,7 +12,15 @@
 #include <dectshimdrv.h>
 #include <ApiFpProject.h>
 #include <dectUtils.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+
+
 #include "endpt.h"
+
+
 
 /* globals */
 int apifd;
@@ -21,13 +29,14 @@ int num_endpoints = 6;
 VRG_ENDPT_STATE endptObjState[6];
 extern int endpoint_fd;
 static int endpoint_country = VRG_COUNTRY_NORTH_AMERICA;
-
 extern unsigned char DectNvsData[];
+int ast_sock;
+
 
 /* defines */
 #define DECTDBG_FILE "/dev/dectdbg"
 #define API_FILE "/dev/dect"
-
+#define BUF_SIZE 2048
 
 #define API_FP_MM_SET_REGISTRATION_MODE_REQ 0x4105
 
@@ -534,6 +543,10 @@ void release_ind(unsigned char *buf) {
 
   handset = ((ApiFpCcConnectCfmType*) buf)->CallReference.HandsetId;
 
+  
+  /* Tell Asterisk about offhook event */
+  
+
   /* write endpoint id to device */
   
   *(o_buf + 0) = ((API_FP_CC_RELEASE_RES & 0xff00) >> 8);
@@ -618,6 +631,32 @@ void handle_packet(unsigned char *buf) {
 
 }
 
+int connect_asterisk(void) {
+
+  int len;
+  struct sockaddr_in remote_addr;
+  char buf[BUF_SIZE];
+
+  memset(&remote_addr, 0, sizeof(remote_addr));
+  remote_addr.sin_family = AF_INET;
+  remote_addr.sin_addr.s_addr = inet_addr("127.0.0.1");
+  remote_addr.sin_port = htons(7777);
+  
+  if ((ast_sock = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
+    perror("socket");
+    return -1;
+  }
+
+  if (connect(ast_sock, (struct sockaddr *)&remote_addr, sizeof(struct sockaddr)) < 0) {
+    perror("connect");
+    return -1;
+  }
+
+  printf("connected to asterisk\n");
+
+  return 0;
+}
+
 
 
 int daemonize(void) 
@@ -629,6 +668,11 @@ int daemonize(void)
   fd_set rfds;
   ENDPT_STATE endptState;
   
+  
+  if (connect_asterisk() < 0) {
+    perror("connect_asterisk");
+    return -1;
+  }
 
   /* Read loop */
   FD_SET(apifd, &rd_fdset);
