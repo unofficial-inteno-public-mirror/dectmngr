@@ -11,16 +11,15 @@
 #include <string.h>
 #include <dectshimdrv.h>
 #include <ApiFpProject.h>
-#include <endpointdrv.h>
 #include <dectUtils.h>
-
+#include "endpt.h"
 
 /* globals */
 int apifd;
 int fd_max;
 int num_endpoints = 6;
 VRG_ENDPT_STATE endptObjState[6];
-static int endpoint_fd = -1;
+extern int endpoint_fd;
 static int endpoint_country = VRG_COUNTRY_NORTH_AMERICA;
 
 extern unsigned char DectNvsData[];
@@ -31,7 +30,7 @@ extern unsigned char DectNvsData[];
 
 
 #define API_FP_MM_SET_REGISTRATION_MODE_REQ 0x4105
-#define EPSTATUS_DRIVER_ERROR       EPSTATUS_UNKNOWN_TYPE
+
 
 
 
@@ -52,34 +51,6 @@ void signal_dialtone(int i);
 void connect_cfm(unsigned char *buf);
 
 
-EPSTATUS vrgEndptSendCasEvtToEndpt( ENDPT_STATE *endptState, CAS_CTL_EVENT_TYPE eventType, CAS_CTL_EVENT event );
-EPSTATUS vrgEndptCreate( int physId, int lineId, VRG_ENDPT_STATE *endptState );
-
-EPSTATUS vrgEndptInit
-(
- VRG_ENDPT_INIT_CFG        *endptInitCfg,
- endptEventCallback         notifyCallback,
- endptPacketCallback        packetCallback,
- endptGetProvCallback       getProvisionCallback,
- endptSetProvCallback       setProvisionCallback,
- endptPacketReleaseCallback packetReleaseCallback,
- endptTaskShutdownCallback  taskShutdownCallback
- );
-
-
-EPSTATUS ovrgEndptSignal
-(
- ENDPT_STATE   *endptState,
- int            cnxId,
- EPSIG          signal,
- unsigned int   value,
- int            duration,
- int            period,
- int            repetition
- );
-
-
-EPSTATUS vrgEndptDriverOpen(void);
 
 
 
@@ -244,60 +215,6 @@ static void dectNvsCtlGetData( unsigned char *pNvsData )
 }
 
 
-EPSTATUS vrgEndptSendCasEvtToEndpt( ENDPT_STATE *endptState, CAS_CTL_EVENT_TYPE eventType, CAS_CTL_EVENT event )
-{
-   ENDPOINTDRV_SENDCASEVT_CMD_PARM tCasCtlEvtParm;
-   int fileHandle;
-
-   tCasCtlEvtParm.epStatus      = EPSTATUS_DRIVER_ERROR;
-   tCasCtlEvtParm.casCtlEvtType = eventType;
-   tCasCtlEvtParm.casCtlEvt     = event;
-   tCasCtlEvtParm.lineId        = endptState->lineId;
-   tCasCtlEvtParm.size          = sizeof(ENDPOINTDRV_SENDCASEVT_CMD_PARM);
-/*
-   tHookstatParm.epStatus   = EPSTATUS_DRIVER_ERROR;
-   tHookstatParm.hookstat   = casState;
-   tHookstatParm.lineId     = endptState->lineId;
-   tHookstatParm.size       = sizeof(ENDPOINTDRV_HOOKSTAT_CMD_PARM);
-*/
-//printf("tHookstatParm.size =%d, endpointdrv_hookstat_cmd_parm=%d\n", tHookstatParm.size, sizeof(ENDPOINTDRV_HOOKSTAT_CMD_PARM));
-
-   fileHandle = open("/dev/bcmendpoint0", O_RDWR);
-
-   if ( ioctl( fileHandle, ENDPOINTIOCTL_SEND_CAS_EVT, &tCasCtlEvtParm ) != IOCTL_STATUS_SUCCESS )
-   {
-      printf(("%s: error during ioctl", __FUNCTION__));
-   }
-
-   close(fileHandle);
-   return( tCasCtlEvtParm.epStatus );
-}
-
-
-
-EPSTATUS vrgEndptConsoleCmd( ENDPT_STATE *endptState, EPCONSOLECMD cmd, EPCMD_PARMS *consoleCmdParams )
-{
-   ENDPOINTDRV_CONSOLE_CMD_PARM tConsoleParm;
-   int fileHandle;
-
-   fileHandle = open("/dev/bcmendpoint0", O_RDWR);
-
-   tConsoleParm.state      = endptState;
-   tConsoleParm.cmd        = cmd;
-   tConsoleParm.lineId     = endptState->lineId;
-   tConsoleParm.consoleCmdParams = consoleCmdParams;
-   tConsoleParm.epStatus   = EPSTATUS_DRIVER_ERROR;
-   tConsoleParm.size       = sizeof(ENDPOINTDRV_CONSOLE_CMD_PARM);
-
-   if ( ioctl( fileHandle, ENDPOINTIOCTL_ENDPT_CONSOLE_CMD, &tConsoleParm ) != IOCTL_STATUS_SUCCESS )
-   {
-      printf(("%s: error during ioctl", __FUNCTION__));
-   }
-
-   close(fileHandle);
-
-   return( tConsoleParm.epStatus );
-}
 
 
 
@@ -462,46 +379,6 @@ void signal_dialtone(int i) {
 }
 
 
-EPSTATUS vrgEndptDriverOpen(void)
-{
-	/* Open and initialize Endpoint driver */
-	if( ( endpoint_fd = open("/dev/bcmendpoint0", O_RDWR) ) == -1 )
-		{
-			printf( "%s: open error %d\n", __FUNCTION__, errno );
-			return ( EPSTATUS_DRIVER_ERROR );
-		}
-	else
-		{
-			printf( "%s: Endpoint driver open success\n", __FUNCTION__ );
-		}
-
-	return ( EPSTATUS_SUCCESS );
-}
-
-
-EPSTATUS vrgEndptInit
-(
- VRG_ENDPT_INIT_CFG        *endptInitCfg,
- endptEventCallback         notifyCallback,
- endptPacketCallback        packetCallback,
- endptGetProvCallback       getProvisionCallback,
- endptSetProvCallback       setProvisionCallback,
- endptPacketReleaseCallback packetReleaseCallback,
- endptTaskShutdownCallback  taskShutdownCallback
- )
-{
-	ENDPOINTDRV_INIT_PARAM tStartupParam;
-
-	tStartupParam.endptInitCfg = endptInitCfg;
-	tStartupParam.epStatus     = EPSTATUS_DRIVER_ERROR;
-	tStartupParam.size         = sizeof(ENDPOINTDRV_INIT_PARAM);
-
-	/* Check if kernel driver is opened */
-	if ( ioctl( endpoint_fd, ENDPOINTIOCTL_ENDPT_INIT, &tStartupParam ) != IOCTL_STATUS_SUCCESS )
-		return ( tStartupParam.epStatus );
-
-	return ( tStartupParam.epStatus );
-}
 
 
 
@@ -531,24 +408,6 @@ int endpt_init(void)
 
 
 
-EPSTATUS vrgEndptCreate( int physId, int lineId, VRG_ENDPT_STATE *endptState )
-{
-	ENDPOINTDRV_CREATE_PARM tInitParm;
-
-	tInitParm.physId     = physId;
-	tInitParm.lineId     = lineId;
-	tInitParm.endptState = endptState;
-	tInitParm.epStatus   = EPSTATUS_DRIVER_ERROR;
-	tInitParm.size       = sizeof(ENDPOINTDRV_CREATE_PARM);
-
-	/* Check if kernel driver is opened */
-
-	if ( ioctl( endpoint_fd, ENDPOINTIOCTL_ENDPT_CREATE, &tInitParm ) != IOCTL_STATUS_SUCCESS )
-		{
-		}
-
-	return( tInitParm.epStatus );
-}
 
 
 static void brcm_create_endpoints(void)
@@ -573,7 +432,7 @@ void setup_ind(unsigned char *buf) {
   ApiInfoElementType *IeBlockPtr = NULL;
   ApiCodecListType codecList;
   EPSIG signal;
-  ENDPT_STATE state;  
+  ENDPT_STATE endptState;
 
   /* write endpoint id to device */
   
@@ -636,9 +495,16 @@ void setup_ind(unsigned char *buf) {
          free(newMailPtr);
 
 
-
-	 /* Signal dialtone */
+	 /* Signal offhook to endpoint */
+	 endptState.lineId = 0;
+	 vrgEndptSendCasEvtToEndpt( &endptState, CAS_CTL_DETECT_EVENT, CAS_CTL_EVENT_OFFHOOK );
+  
+	 /* Dialtone */
 	 signal_dialtone(1);
+
+
+
+	 
        }
    }
 }
@@ -648,41 +514,11 @@ void setup_ind(unsigned char *buf) {
 
 
 
-EPSTATUS ovrgEndptSignal
-(
- ENDPT_STATE   *endptState,
- int            cnxId,
- EPSIG          signal,
- unsigned int   value,
- int            duration,
- int            period,
- int            repetition
- )
-{
-	ENDPOINTDRV_SIGNAL_PARM tSignalParm;
-
-	tSignalParm.cnxId    = cnxId;
-	tSignalParm.state    = endptState;
-	tSignalParm.signal   = signal;
-	tSignalParm.value    = value;
-	tSignalParm.epStatus = EPSTATUS_DRIVER_ERROR;
-	tSignalParm.duration = duration;
-	tSignalParm.period   = period;
-	tSignalParm.repetition = repetition;
-	tSignalParm.size     = sizeof(ENDPOINTDRV_SIGNAL_PARM);
-
-	/* Check if kernel driver is opened */
-
-	if ( ioctl( endpoint_fd, ENDPOINTIOCTL_ENDPT_SIGNAL, &tSignalParm ) != IOCTL_STATUS_SUCCESS )
-		{
-		}
-
-	return( tSignalParm.epStatus );
-}
 
 
 
 void connect_cfm(unsigned char *buf) {  
+
   ApiHandsetIdType handset;
   
   handset = ((ApiFpCcConnectCfmType*) buf)->CallReference.HandsetId;
@@ -691,8 +527,11 @@ void connect_cfm(unsigned char *buf) {
 
 
 void release_ind(unsigned char *buf) {  
+
   ApiHandsetIdType handset;
   unsigned char o_buf[5];
+  ENDPT_STATE endptState;
+
   handset = ((ApiFpCcConnectCfmType*) buf)->CallReference.HandsetId;
 
   /* write endpoint id to device */
@@ -705,6 +544,11 @@ void release_ind(unsigned char *buf) {
 
   printf("API_FP_CC_RELEASE_RES\n");
   dectDrvWrite(o_buf, 5);
+
+  /* Signal onhook to endpoint */
+  endptState.lineId = 0;
+  vrgEndptSendCasEvtToEndpt( &endptState, CAS_CTL_DETECT_EVENT, CAS_CTL_EVENT_OFFHOOK );
+
 
 }
 
@@ -783,21 +627,12 @@ int daemonize(void)
   unsigned char buf[API_FP_LINUX_MAX_MAIL_SIZE];
   int res, len, i;
   fd_set rfds;
-  ENDPT_STATE    endptState;
-  
-  dect_init();
-  register_handsets_start();
-  
-  endptState.lineId = 0;
-  vrgEndptSendCasEvtToEndpt( &endptState, CAS_CTL_DETECT_EVENT, CAS_CTL_EVENT_OFFHOOK );
+  ENDPT_STATE endptState;
   
 
-
-  signal_dialtone(1);
-
+  /* Read loop */
   FD_SET(apifd, &rd_fdset);
 
-  /* main loop */
   while (1) {
     
     memcpy(&rfds, &rd_fdset, sizeof(fd_set));;
