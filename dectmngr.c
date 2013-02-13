@@ -785,13 +785,15 @@ int daemonize(void)
   fd_set rfds;
   ENDPT_STATE    endptState;
   
-  /* endpt_init(); */
-  /* brcm_create_endpoints(); */
+  dect_init();
+  register_handsets_start();
+  
+  endptState.lineId = 0;
+  vrgEndptSendCasEvtToEndpt( &endptState, CAS_CTL_DETECT_EVENT, CAS_CTL_EVENT_OFFHOOK );
+  
 
-  /* signal_dialtone(1);   */
-  /* endptState.lineId = 1; */
-  /* vrgEndptSendCasEvtToEndpt( &endptState, CAS_CTL_DETECT_EVENT, CAS_CTL_EVENT_OFFHOOK ); */
 
+  signal_dialtone(1);
 
   FD_SET(apifd, &rd_fdset);
 
