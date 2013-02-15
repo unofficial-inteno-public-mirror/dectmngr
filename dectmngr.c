@@ -58,7 +58,7 @@ static void brcm_create_endpoints(void);
 int endpt_init(void);
 void signal_dialtone(int i);
 void connect_cfm(unsigned char *buf);
-
+EPSTATUS vrgEndptConsoleCmd( ENDPT_STATE *endptState, EPCONSOLECMD cmd, EPCMD_PARMS *consoleCmdParams );
 
 
 
@@ -278,6 +278,31 @@ static int dect_init(void)
 
 
 
+EPSTATUS vrgEndptConsoleCmd( ENDPT_STATE *endptState, EPCONSOLECMD cmd, EPCMD_PARMS *consoleCmdParams )
+{
+   ENDPOINTDRV_CONSOLE_CMD_PARM tConsoleParm;
+   int fileHandle;
+
+   fileHandle = open("/dev/bcmendpoint0", O_RDWR);
+
+   tConsoleParm.state      = endptState;
+   tConsoleParm.cmd        = cmd;
+   tConsoleParm.lineId     = endptState->lineId;
+   tConsoleParm.consoleCmdParams = consoleCmdParams;
+   tConsoleParm.epStatus   = EPSTATUS_DRIVER_ERROR;
+   tConsoleParm.size       = sizeof(ENDPOINTDRV_CONSOLE_CMD_PARM);
+
+   if ( ioctl( fileHandle, ENDPOINTIOCTL_ENDPT_CONSOLE_CMD, &tConsoleParm ) != IOCTL_STATUS_SUCCESS )
+   {
+      printf(("%s: error during ioctl", __FUNCTION__));
+   }
+
+   close(fileHandle);
+
+   return( tConsoleParm.epStatus );
+}
+
+
 void RevertByteOrder(int length, unsigned char* data)
 {
 #if 0
@@ -383,58 +408,60 @@ void ApiFreeInfoElement(ApiInfoElementType **IeBlockPtr)
 }
 
 
-void signal_dialtone(int i) {
-  ovrgEndptSignal( (ENDPT_STATE*)&endptObjState[i], -1, EPSIG_DIAL, 1, -1, -1 , -1);
-}
+/* void signal_dialtone(int i) { */
+/*   ovrgEndptSignal( (ENDPT_STATE*)&endptObjState[i], -1, EPSIG_DIAL, 1, -1, -1 , -1); */
+/* } */
 
 
 
 
 
-int endpt_init(void)
-{
-	VRG_ENDPT_INIT_CFG   vrgEndptInitCfg;
-	int rc;
+/* int endpt_init(void) */
+/* { */
+/* 	VRG_ENDPT_INIT_CFG   vrgEndptInitCfg; */
+/* 	int rc; */
 
-	printf("Initializing endpoint interface\n");
+/* 	printf("Initializing endpoint interface\n"); */
 
-	vrgEndptDriverOpen();
+/* 	vrgEndptDriverOpen(); */
 
-	vrgEndptInitCfg.country = endpoint_country;
-	vrgEndptInitCfg.currentPowerSource = 0;
+/* 	vrgEndptInitCfg.country = endpoint_country; */
+/* 	vrgEndptInitCfg.currentPowerSource = 0; */
 
-	/* Intialize endpoint */
-	rc = vrgEndptInit( &vrgEndptInitCfg,
-			   NULL,
-			   NULL,
-			   NULL,
-			   NULL,
-			   NULL,
-			   NULL );
+/* 	/\* Intialize endpoint *\/ */
+/* 	rc = vrgEndptInit( &vrgEndptInitCfg, */
+/* 			   NULL, */
+/* 			   NULL, */
+/* 			   NULL, */
+/* 			   NULL, */
+/* 			   NULL, */
+/* 			   NULL ); */
 
-	return 0;
-}
-
-
+/* 	return 0; */
+/* } */
 
 
 
-static void brcm_create_endpoints(void)
-{
-	int i, rc;
 
-	/* Creating Endpt */
-	for ( i = 0; i < num_endpoints; i++ )
-	{
-		rc = vrgEndptCreate(i, i,(VRG_ENDPT_STATE *)&endptObjState[i]);
-	}
-}
+
+/* static void brcm_create_endpoints(void) */
+/* { */
+/* 	int i, rc; */
+
+/* 	/\* Creating Endpt *\/ */
+/* 	for ( i = 0; i < num_endpoints; i++ ) */
+/* 	{ */
+/* 		rc = vrgEndptCreate(i, i,(VRG_ENDPT_STATE *)&endptObjState[i]); */
+/* 	} */
+/* } */
 
 
 void setup_ind(unsigned char *buf) {
 
   int endpt = 1;
+  int len;
   unsigned char o_buf[5];
+  unsigned char ast_buf[5];
   unsigned char *newMailPtr;
   int newMailSize;
   unsigned short IeBlockLength;
@@ -443,8 +470,13 @@ void setup_ind(unsigned char *buf) {
   EPSIG signal;
   ENDPT_STATE endptState;
 
+
+  /* Tell Asterisk about offhook event */
+  ast_buf[0] = '1';
+  len = send(ast_sock, ast_buf, 1, 0);
+
+
   /* write endpoint id to device */
-  
   *(o_buf + 0) = ((API_FP_CC_SETUP_RES & 0xff00) >> 8);
   *(o_buf + 1) = ((API_FP_CC_SETUP_RES & 0x00ff) >> 0);
   *(o_buf + 2) = 1;
@@ -505,11 +537,11 @@ void setup_ind(unsigned char *buf) {
 
 
 	 /* Signal offhook to endpoint */
-	 endptState.lineId = 0;
-	 vrgEndptSendCasEvtToEndpt( &endptState, CAS_CTL_DETECT_EVENT, CAS_CTL_EVENT_OFFHOOK );
+	 /* endptState.lineId = 0; */
+	 /* vrgEndptSendCasEvtToEndpt( &endptState, CAS_CTL_DETECT_EVENT, CAS_CTL_EVENT_OFFHOOK ); */
   
 	 /* Dialtone */
-	 signal_dialtone(1);
+	 /* signal_dialtone(1); */
 
 
 
@@ -539,13 +571,16 @@ void release_ind(unsigned char *buf) {
 
   ApiHandsetIdType handset;
   unsigned char o_buf[5];
+  unsigned char ast_buf[5];
   ENDPT_STATE endptState;
+  int len;
 
   handset = ((ApiFpCcConnectCfmType*) buf)->CallReference.HandsetId;
 
-  
-  /* Tell Asterisk about offhook event */
-  
+
+  /* Tell Asterisk about onhook event */
+  ast_buf[0] = '0';
+  len = send(ast_sock, ast_buf, 1, 0);
 
   /* write endpoint id to device */
   
@@ -559,8 +594,8 @@ void release_ind(unsigned char *buf) {
   dectDrvWrite(o_buf, 5);
 
   /* Signal onhook to endpoint */
-  endptState.lineId = 0;
-  vrgEndptSendCasEvtToEndpt( &endptState, CAS_CTL_DETECT_EVENT, CAS_CTL_EVENT_OFFHOOK );
+  /* endptState.lineId = 0; */
+  /* vrgEndptSendCasEvtToEndpt( &endptState, CAS_CTL_DETECT_EVENT, CAS_CTL_EVENT_OFFHOOK ); */
 
 
 }
