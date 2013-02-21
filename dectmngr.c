@@ -472,8 +472,7 @@ void setup_ind(unsigned char *buf) {
 
 
   /* Tell Asterisk about offhook event */
-  ast_buf[0] = '1';
-  len = send(ast_sock, ast_buf, 1, 0);
+  len = send(ast_sock, buf, API_FP_LINUX_MAX_MAIL_SIZE, 0);
 
 
   /* write endpoint id to device */
@@ -579,11 +578,9 @@ void release_ind(unsigned char *buf) {
 
 
   /* Tell Asterisk about onhook event */
-  ast_buf[0] = '0';
-  len = send(ast_sock, ast_buf, 1, 0);
+  len = send(ast_sock, buf, API_FP_LINUX_MAX_MAIL_SIZE, 0);
 
   /* write endpoint id to device */
-  
   *(o_buf + 0) = ((API_FP_CC_RELEASE_RES & 0xff00) >> 8);
   *(o_buf + 1) = ((API_FP_CC_RELEASE_RES & 0x00ff) >> 0);
   *(o_buf + 2) = handset;
@@ -714,7 +711,7 @@ int daemonize(void)
 
   while (1) {
     
-    memcpy(&rfds, &rd_fdset, sizeof(fd_set));;
+    memcpy(&rfds, &rd_fdset, sizeof(fd_set));
     
     if (res = select(fd_max + 1, &rfds, NULL, NULL, NULL) < 0) {
       perror("select");
