@@ -576,6 +576,9 @@ void release_ind(unsigned char *buf) {
 
   handset = ((ApiFpCcConnectCfmType*) buf)->CallReference.HandsetId;
 
+  /* Tell Asterisk about onhook event */
+  len = send(ast_sock, buf, API_FP_LINUX_MAX_MAIL_SIZE, 0);
+
 
   /* write endpoint id to device */
   *(o_buf + 0) = ((API_FP_CC_RELEASE_RES & 0xff00) >> 8);
@@ -588,8 +591,6 @@ void release_ind(unsigned char *buf) {
   dectDrvWrite(o_buf, 5);
 
 
-  /* Tell Asterisk about onhook event */
-  len = send(ast_sock, buf, API_FP_LINUX_MAX_MAIL_SIZE, 0);
 
 
   /* Signal onhook to endpoint */
