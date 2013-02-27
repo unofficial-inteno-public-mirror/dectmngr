@@ -19,6 +19,7 @@
 
 
 #include "endpt.h"
+#include "las.h"
 
 
 
@@ -47,7 +48,7 @@ int ast_sock;
 int register_handsets_start(void);
 int register_handsets_stop(void);
 int ping_handsets(void);
-static void dectDrvWrite(void *data, int size);
+void dectDrvWrite(void *data, int size);
 int write_frame(unsigned char *fr);
 int daemonize(void);
 static int open_file(int *fd_ptr, const char *filename);
@@ -175,16 +176,17 @@ int ping_handsets(void) {
 *  RETURNS:    none
 *
 ****************************************************************************/
-static void dectDrvWrite(void *data, int size)
+void dectDrvWrite(void *data, int size)
 {   
     int i;
     unsigned char* cdata = (unsigned char*)data;
     printf("\n[WDECT][%04d] - ",size);
+
     for (i=0 ; i<size ; i++) {
         printf("%02x ",cdata[i]);
     }
     printf("\n");
-
+       return;
    if (-1 == write(apifd, data, size))
    {
       perror("write to API failed");
@@ -348,6 +350,29 @@ void RevertByteOrder(int length, unsigned char* data)
 /****************************************************************************
 *                                Implementation
 ****************************************************************************/
+ApiInfoElementType* ApiGetNextInfoElement(ApiInfoElementType *IeBlockPtr,
+                                          rsuint16 IeBlockLength,
+                                          ApiInfoElementType *IePtr)
+{
+	ApiInfoElementType *pEnd = (ApiInfoElementType*)((rsuint8*)IeBlockPtr + IeBlockLength);
+
+	if (IePtr == NULL)
+		{
+			// return the first info element                                                                                                                   
+			IePtr = IeBlockPtr;
+		}
+	else
+		{
+			// calc the address of the next info element                                                                                                       
+			IePtr = (ApiInfoElementType*)((rsuint8*)IePtr + RSOFFSETOF(ApiInfoElementType, IeData) + IePtr->IeLength);
+		}
+
+	if (IePtr < pEnd)
+		{
+			return IePtr; // return the pointer to the next info element                                                                                       
+		}
+	return NULL; // return NULL to indicate that we have reached the end                                                                                 
+}
 
 
 /***************************************************************************/
@@ -746,7 +771,12 @@ int daemonize(void)
 }
 
 
+void las(void)
+{
+	
+	dectLasInit();
 
+}
 
 
 int main(int argc, char **argv)
@@ -756,6 +786,7 @@ int main(int argc, char **argv)
   int sflag = 0;
   int pflag = 0;
   int dflag = 0;
+  int lflag = 0;
   int index, ret , c;
 
 
@@ -767,7 +798,7 @@ int main(int argc, char **argv)
 
   /* bosInit(); */
 
-  while ((c = getopt (argc, argv, "rispd")) != -1)
+  while ((c = getopt (argc, argv, "rispdl")) != -1)
     switch (c)
       {
       case 'r':
@@ -784,6 +815,9 @@ int main(int argc, char **argv)
 	break;
       case 'd':
 	dflag=1;
+	break;
+      case 'l':
+	lflag=1;
 	break;
       case '?':
 	if (optopt == 'c')
@@ -805,19 +839,22 @@ int main(int argc, char **argv)
 
 
   if(iflag)
-    dect_init();
+	  dect_init();
 
   if(rflag)
-    register_handsets_start();
+	  register_handsets_start();
 
   if(sflag)
-    register_handsets_stop();
+	  register_handsets_stop();
 
   if(pflag)
-    ping_handsets();
+	  ping_handsets();
 
   if(dflag)
-    daemonize();
+	  daemonize();
+
+  if(lflag)
+	  las();
 
 
   return 0;
