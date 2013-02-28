@@ -186,7 +186,7 @@ void dectDrvWrite(void *data, int size)
         printf("%02x ",cdata[i]);
     }
     printf("\n");
-       return;
+
    if (-1 == write(apifd, data, size))
    {
       perror("write to API failed");
