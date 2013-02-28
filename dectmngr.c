@@ -216,13 +216,38 @@ static void dectDrvWrite_debug(void *data, int size)
 
 static void dectNvsCtlGetData( unsigned char *pNvsData )
 {
-   if ( pNvsData == NULL ) 
-   {   
-     printf("%s: error %d\n", __FUNCTION__, errno);
-      return;
-   }
+	int fd, ret;
+	
+	if (pNvsData == NULL) {
+		
+		printf("%s: error %d\n", __FUNCTION__, errno);
+		return;
+	}
 
-   memcpy( pNvsData, &DectNvsData[0], API_FP_LINUX_NVS_SIZE);
+	
+	fd = open("/root/nvs", O_RDONLY);
+	if (fd == -1) {
+		perror("open");
+		exit(EXIT_FAILURE);
+	}
+
+	ret = read(fd, pNvsData, API_FP_LINUX_NVS_SIZE);
+	if (ret == -1) {
+		perror("read");
+		exit(EXIT_FAILURE);
+	}
+
+	ret = close(fd);
+	if (ret == -1) {
+		perror("close");
+		exit(EXIT_FAILURE);
+	}
+
+
+
+
+	/* printf("ret: %d\n", ret); */
+	/* memcpy( pNvsData, &DectNvsData[0], API_FP_LINUX_NVS_SIZE); */
 }
 
 
@@ -252,8 +277,9 @@ static int dect_init(void)
   }
 
   close(fd);
-
   
+  printf("sizeof(ApiFpLinuxInitReqType): %d\n", sizeof(ApiFpLinuxInitReqType));
+
   /* download the eeprom values to the DECT driver*/
   t = (ApiFpLinuxInitReqType*) malloc(sizeof(ApiFpLinuxInitReqType));
   t->Primitive = API_FP_LINUX_INIT_REQ;
@@ -779,6 +805,26 @@ void las(void)
 }
 
 
+void nvs_dump(void)
+{
+	int fd, ret;
+	unsigned char *buf;
+
+	fd = open("/root/nvs", O_RDWR | O_CREAT);
+	if (ret == -1) {
+		perror("open");
+		exit(EXIT_FAILURE);
+	}
+
+	buf = (ApiFpLinuxInitReqType*) malloc(API_FP_LINUX_NVS_SIZE);
+
+	dectNvsCtlGetData(buf);
+	/* memcpy( buf, &DectNvsData[0], API_FP_LINUX_NVS_SIZE); */
+
+	write(fd, (void *)(buf), API_FP_LINUX_NVS_SIZE);
+}
+
+
 int main(int argc, char **argv)
 {
   int iflag = 0;
@@ -787,6 +833,7 @@ int main(int argc, char **argv)
   int pflag = 0;
   int dflag = 0;
   int lflag = 0;
+  int nflag = 0;
   int index, ret , c;
 
 
@@ -798,7 +845,7 @@ int main(int argc, char **argv)
 
   /* bosInit(); */
 
-  while ((c = getopt (argc, argv, "rispdl")) != -1)
+  while ((c = getopt (argc, argv, "rispdln")) != -1)
     switch (c)
       {
       case 'r':
@@ -818,6 +865,9 @@ int main(int argc, char **argv)
 	break;
       case 'l':
 	lflag=1;
+	break;
+      case 'n':
+	nflag=1;
 	break;
       case '?':
 	if (optopt == 'c')
@@ -855,6 +905,9 @@ int main(int argc, char **argv)
 
   if(lflag)
 	  las();
+
+  if(nflag)
+	  nvs_dump();
 
 
   return 0;
