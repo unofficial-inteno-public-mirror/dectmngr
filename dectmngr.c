@@ -60,7 +60,7 @@ int endpt_init(void);
 void signal_dialtone(int i);
 void connect_cfm(unsigned char *buf);
 EPSTATUS vrgEndptConsoleCmd( ENDPT_STATE *endptState, EPCONSOLECMD cmd, EPCMD_PARMS *consoleCmdParams );
-
+void dectSetupPingingCall(int handset);
 
 
 
@@ -154,12 +154,118 @@ int register_handsets_stop(void)
 
 int ping_handsets(void) {
   
-  printf("ping_handsets\n");
+	printf("ping_handsets\n");
+	dectSetupPingingCall(1);
 
-  return 0;
+	return 0;
 }
 
 
+
+/****************************************************************************
+*
+*  FUNCTION:   dectSetupPingingCall
+*
+*  PURPOSE:    Setup internal pinging call without involve the
+*              PCM bus.
+*
+*  PARAMETERS:
+*     handset -- The handset id to setup the call on.
+*  RETURNS:
+*     Nothing
+*
+*  NOTES:   Pinging involves sending a API_FP_CC_SETUP_REQ with a API_IE_CALLING_PARTY_NAME
+*           info element with presentationInd set to API_PRESENTATION_HANSET_LOCATOR
+****************************************************************************/
+void dectSetupPingingCall(int handset)
+{
+	ApiCallingNameType * pCallingNameIe    = NULL;
+	ApiInfoElementType * pingIeBlockPtr    = NULL;
+	ApiFpCcSetupReqType * pingMailPtr      = NULL;
+	unsigned short pingIeBlockLength       = 0;
+	char callingName[]                     = "HANDSET LOCATOR";
+	int callIdx;
+
+	/************************************************
+	 * create API_IE_CALLING_PARTY_NAME infoElement *
+	 ************************************************/
+
+	pCallingNameIe = malloc( (sizeof(ApiCallingNameType) - 1) + (strlen(callingName)+1) );
+
+	if( pCallingNameIe != NULL )
+		{
+			pCallingNameIe->UsedAlphabet     = AUA_DECT;
+			pCallingNameIe->PresentationInd  = API_PRESENTATION_HANSET_LOCATOR;
+			pCallingNameIe->ScreeningInd     = API_NETWORK_PROVIDED;
+			pCallingNameIe->NameLength       = strlen(callingName);
+			memcpy( &(pCallingNameIe->Name[0]), callingName, (strlen(callingName)+1) );
+
+			/* Add to infoElement block */
+			ApiBuildInfoElement( &pingIeBlockPtr,
+					     &pingIeBlockLength,
+					     API_IE_CALLING_PARTY_NAME,
+					     ((sizeof(ApiCallingNameType) - 1) + (strlen(callingName)+1) ),
+					     (unsigned char*)pCallingNameIe);
+
+			/* free infoElement */
+			free(pCallingNameIe);
+
+			if( pingIeBlockPtr == NULL )
+				{
+					printf("dectCallMgrSetupPingingCall:  ApiBuildInfoElement FAILED for API_IE_CALLING_PARTY_NAME!!\n");
+					return;
+				}
+		}
+	else
+		{
+			printf("dectCallMgrSetupPingingCall: malloc FAILED for API_IE_CALLING_PARTY_NAME!!\n");
+			return;
+		}
+
+	/*****************************************************
+	 * create API_FP_CC_SETUP_REQ mail *
+	 *****************************************************/
+	if( pingIeBlockLength > 0 )
+		{
+			/* Allocate memory for mail */
+			pingMailPtr = (ApiFpCcSetupReqType *) malloc( (sizeof(ApiFpCcSetupReqType)-1) + pingIeBlockLength );
+			if (pingMailPtr != NULL)
+				{
+					/* Fillout mail contents */
+					((ApiFpCcSetupReqType *) pingMailPtr)->Primitive    = API_FP_CC_SETUP_REQ;
+					((ApiFpCcSetupReqType *) pingMailPtr)->CallReference.HandsetId = handset;
+					((ApiFpCcSetupReqType *) pingMailPtr)->BasicService = API_BASIC_SPEECH;
+					((ApiFpCcSetupReqType *) pingMailPtr)->CallClass    = API_CC_NORMAL;
+					((ApiFpCcSetupReqType *) pingMailPtr)->SourceId     = 0; /* 0 is the base station id */
+					((ApiFpCcSetupReqType *) pingMailPtr)->Signal       = API_CC_SIGNAL_ALERT_ON_PATTERN_2;
+
+					/* Copy over infoElements */
+					memcpy( &(((ApiFpCcSetupReqType *) pingMailPtr)->InfoElement[0]), pingIeBlockPtr, pingIeBlockLength );
+					ApiFreeInfoElement( &pingIeBlockPtr );
+
+					/* Size must be in little endian  */
+					RevertByteOrder( sizeof(unsigned short),(unsigned char*)&pingIeBlockLength   );
+					((ApiFpCcSetupReqType *) pingMailPtr)->InfoElementLength = pingIeBlockLength;
+				}
+			else
+				{
+					printf("dectCallMgrSetupPingingCall: No more memory available for API_FP_CC_SETUP_REQ!!!\n");
+					return;
+				}
+		}
+	else
+		{
+			printf("dectCallMgrSetupPingingCall: zero pingIeBlockLength!!!\n");
+			ApiFreeInfoElement( &pingIeBlockPtr );
+			return;
+		}
+
+
+	/* Send the mail */
+	printf("OUTPUT: API_FP_CC_SETUP_REQ (ping)\n");
+	dectUtilSendMail(USER_TASK, ( (sizeof(ApiFpCcSetupReqType)-1) + pingIeBlockLength ), (unsigned char *)pingMailPtr );
+
+}
 
 
 
