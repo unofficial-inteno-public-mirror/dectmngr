@@ -53,11 +53,15 @@ all: main
 
 dynamic: all
 
-main: $(OBJS) dectproxy
+main: $(OBJS) dectproxy testclient
 	$(CC) $(LDFLAGS) $(INCLUDE_PATHS) -o dectmngr $(OBJS)
 
 dectproxy: dectproxy.o
 	$(CC) $(LDFLAGS) $(INCLUDE_PATHS) -o $@ $<
+
+testclient: testclient.o
+	$(CC) $(LDFLAGS) $(INCLUDE_PATHS) -o $@ $<
+
 
 clean:
 	rm -f dectmngr ${OBJS}

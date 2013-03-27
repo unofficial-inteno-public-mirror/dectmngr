@@ -9,12 +9,22 @@
 #include <sys/stat.h>
 #include <netinet/in.h>
 #include <fcntl.h>
+#include <signal.h>
+#include <unistd.h>
+
 
 #define MAX_MAIL_SIZE 4098
 #define MAX_LISTENERS 10
 
 #define MAX(a,b) ((a) > (b) ? (a) : (b))
 
+
+struct sigaction act;
+
+void sighandler(int signum, siginfo_t *info, void *ptr)
+{
+	printf("Recieved signal %d\n", signum);
+}
 
 void exit_failure(const char *format, ...)
 {
@@ -42,6 +52,15 @@ int main(void)
 	struct sockaddr_in my_addr, peer_addr;
 	socklen_t peer_addr_size;
 	uint8_t hdr[2];
+	int client[MAX_LISTENERS];
+
+	/* Setup signal handler. When writing data to a
+	   client that closed the connection we get a
+	   SIGPIPE. We need to catch it to avoid beeing killed */
+	memset(&act, 0, sizeof(act));
+	act.sa_sigaction = sighandler;
+	act.sa_flags = SA_SIGINFO;
+	sigaction(SIGPIPE, &act, NULL);
 
 	d = open("/dev/dect", O_RDWR);
 	if (d == -1)
@@ -83,7 +102,7 @@ int main(void)
 			if ((n = accept(l, (struct sockaddr *) &peer_addr, &peer_addr_size)) == -1)
 				exit_failure("accept");
 			else {
-				printf("accepted connection\n");
+				printf("accepted connection: %d\n", n);
 				/* Add new connection to rfds */
 				FD_SET(n, &master);
 				fdmax = MAX(fdmax, n);
@@ -101,6 +120,7 @@ int main(void)
 				for (i = 0; i <= fdmax; i++) {
 					/* If data is read from /dev/dect, send it to all clients */
 					if (i != l && i != d) {
+						/* Send packet length as first two bytes */
 						hdr[0] = (uint8_t)((ret & 0xff00) >> 8); // MSB
 						hdr[1] = (uint8_t)(ret & 0x00ff);        // LSB
 						if (send(i, hdr, 2, 0) == -1)
@@ -120,7 +140,6 @@ int main(void)
 				ret = recv(i, buf, sizeof(buf), 0);
 				if (ret == -1) {
 					perror("recv");
-					//exit_failure("recv");
 				} else if (ret == 0) {
 					/* Client closed connection */
 					printf("client closed connection\n");
@@ -131,7 +150,7 @@ int main(void)
 					/* If data is read from client, send it to /dev/dect */
 					printf("client: %d\n", ret);
 					if (write(d, buf, ret) == -1)
-						exit_failure("write");
+						perror("write dect");
 				}
 			}
 		}
