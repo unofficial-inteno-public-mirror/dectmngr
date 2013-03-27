@@ -1,5 +1,5 @@
 
-
+#include <dectctl.h>
 #include <stdio.h>
 #include <sys/ioctl.h>
 #include <errno.h>
@@ -16,7 +16,7 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
-
+#include <dectNvsCtl.h>
 
 #include "endpt.h"
 #include "las.h"
@@ -31,8 +31,8 @@ VRG_ENDPT_STATE endptObjState[6];
 extern int endpoint_fd;
 static int endpoint_country = VRG_COUNTRY_NORTH_AMERICA;
 extern unsigned char DectNvsData[];
-int ast_sock;
-
+int proxy;
+unsigned char nvs_buf[API_FP_LINUX_NVS_SIZE];
 
 /* defines */
 #define DECTDBG_FILE "/dev/dectdbg"
@@ -40,7 +40,7 @@ int ast_sock;
 #define BUF_SIZE 2048
 
 #define API_FP_MM_SET_REGISTRATION_MODE_REQ 0x4105
-
+#define DECT_MAX_HANDSET 6
 
 
 
@@ -61,8 +61,79 @@ void signal_dialtone(int i);
 void connect_cfm(unsigned char *buf);
 EPSTATUS vrgEndptConsoleCmd( ENDPT_STATE *endptState, EPCONSOLECMD cmd, EPCMD_PARMS *consoleCmdParams );
 void dectSetupPingingCall(int handset);
+void nvs_update_ind(unsigned char *buf);
 
 
+void RevertByteOrder(int length, unsigned char* data) 
+{
+
+}
+
+static void dectCtlImplEepromCmd(DECT_EEPROMCMD_TYPE cmd, int address, int length, int data )
+{
+
+   unsigned char *tempPtr = NULL;
+   switch (cmd)
+   {
+      case DECT_EEPROMCMD_GET_DATA:
+      {
+         tempPtr = (unsigned char*) malloc (7);
+         if (tempPtr == NULL)
+         {
+            cmsLog_error("No more memory!!!");
+            return;
+         }
+         *(tempPtr+0) = 0; // Length MSB
+         *(tempPtr+1) = 5; // Length LSB
+         *(tempPtr+2) = (unsigned char) ((API_FP_GET_EEPROM_REQ&0xff00)>>8);  // Primitive MSB
+         *(tempPtr+3) = (unsigned char)  (API_FP_GET_EEPROM_REQ&0x00ff);      // Primitive LSB
+         *(tempPtr+4) = (unsigned char)   (address&0x00ff);                   // EEPROM Address
+         *(tempPtr+5) = (unsigned char)  ((address&0xff00)>>8);               // EEPROM Address
+         *(tempPtr+6) = (unsigned char)   length;                             // Command Length
+      }
+      break;
+      case DECT_EEPROMCMD_SET_DATA:
+      {
+         tempPtr = (unsigned char*) malloc (8);
+         if (tempPtr == NULL)
+         {
+            cmsLog_error("No more memory!!!");
+            return;
+         }
+         *(tempPtr+0) = 0; // Length MSB
+         *(tempPtr+1) = 6; // Length LSB
+         *(tempPtr+2) = (unsigned char) ((API_FP_SET_EEPROM_REQ&0xff00)>>8);  // Primitive MSB
+         *(tempPtr+3) = (unsigned char)  (API_FP_SET_EEPROM_REQ&0x00ff);      // Primitive LSB
+         *(tempPtr+4) = (unsigned char)  (address&0x00ff);                    // EEPROM Address
+         *(tempPtr+5) = (unsigned char) ((address&0xff00)>>8);                // EEPROM Address
+         *(tempPtr+6) = (unsigned char)   length;                             // Command Length
+         *(tempPtr+7) = (unsigned char)   data;                               // Command Data
+      }
+      break;
+      default:
+      break;
+   }
+
+   if (tempPtr != NULL)
+   {
+      write_frame(tempPtr);
+   }
+}
+
+
+static void dectCtlImplGetDectMode( void )
+{
+	int i, addr;
+
+	
+	for (i = 0; i < API_FP_LINUX_NVS_SIZE; i += 128) {
+
+		addr |= (i & 0x00ff) << 8;                    // EEPROM Address
+		addr |= (i & 0xff00) >> 8;                // EEPROM Address
+
+		dectCtlImplEepromCmd(DECT_EEPROMCMD_GET_DATA, addr, 128, 0 );
+	}
+}
 
 static int open_file(int *fd_ptr, const char *filename)
 {
@@ -244,7 +315,6 @@ void dectSetupPingingCall(int handset)
 					ApiFreeInfoElement( &pingIeBlockPtr );
 
 					/* Size must be in little endian  */
-					RevertByteOrder( sizeof(unsigned short),(unsigned char*)&pingIeBlockLength   );
 					((ApiFpCcSetupReqType *) pingMailPtr)->InfoElementLength = pingIeBlockLength;
 				}
 			else
@@ -293,7 +363,7 @@ void dectDrvWrite(void *data, int size)
     }
     printf("\n");
 
-   if (-1 == write(apifd, data, size))
+   if (-1 == write(proxy, data, size))
    {
       perror("write to API failed");
       return;
@@ -320,7 +390,7 @@ static void dectDrvWrite_debug(void *data, int size)
 }
 
 
-static void dectNvsCtlGetData( unsigned char *pNvsData )
+static void joe_dectNvsCtlGetData( unsigned char *pNvsData )
 {
 	int fd, ret;
 	
@@ -389,7 +459,8 @@ static int dect_init(void)
   /* download the eeprom values to the DECT driver*/
   t = (ApiFpLinuxInitReqType*) malloc(sizeof(ApiFpLinuxInitReqType));
   t->Primitive = API_FP_LINUX_INIT_REQ;
-  dectNvsCtlGetData(t->NvsData);
+  joe_dectNvsCtlGetData(t->NvsData);
+
   dectDrvWrite(t, sizeof(ApiFpLinuxInitReqType));
 
 
@@ -437,25 +508,6 @@ EPSTATUS vrgEndptConsoleCmd( ENDPT_STATE *endptState, EPCONSOLECMD cmd, EPCMD_PA
 }
 
 
-void RevertByteOrder(int length, unsigned char* data)
-{
-#if 0
-   int i;
-   unsigned char tmp;
-
-   if (length <= 1 ) 
-   {
-      return;
-   }
-
-   for (i=0; i<length/2; i++)
-   {
-      tmp = data[i];
-      data[i]=data[length-i-1];
-	   data[length-i-1]=tmp;
-   }
-#endif
-}
 
 
 /****************************************************************************
@@ -518,7 +570,6 @@ void ApiBuildInfoElement(ApiInfoElementType **IeBlockPtr,
 
   /* Ie is in little endian inside the infoElement list while all arguments to function are in bigEndian */
   rsuint16 targetIe = Ie;
-  RevertByteOrder( sizeof(ApiIeType),(rsuint8*)&targetIe   );          
 
   /* Allocate / reallocate a heap block to store (append) the info elemte in. */
   ApiInfoElementType *p = malloc(newLength);
@@ -629,7 +680,7 @@ void setup_ind(unsigned char *buf) {
 
 
   /* Tell Asterisk about offhook event */
-  len = send(ast_sock, buf, API_FP_LINUX_MAX_MAIL_SIZE, 0);
+  len = send(proxy, buf, API_FP_LINUX_MAX_MAIL_SIZE, 0);
 
 
   /* write endpoint id to device */
@@ -682,7 +733,6 @@ void setup_ind(unsigned char *buf) {
          ApiFreeInfoElement( &IeBlockPtr );
 
          /* Size must be in little endian  */
-         RevertByteOrder( sizeof(unsigned short),(unsigned char*)&IeBlockLength   );
          ((ApiFpCcConnectReqType *) newMailPtr)->InfoElementLength = IeBlockLength;
 
          /* Send mail */
@@ -734,7 +784,7 @@ void release_ind(unsigned char *buf) {
   handset = ((ApiFpCcConnectCfmType*) buf)->CallReference.HandsetId;
 
   /* Tell Asterisk about onhook event */
-  len = send(ast_sock, buf, API_FP_LINUX_MAX_MAIL_SIZE, 0);
+  len = send(proxy, buf, API_FP_LINUX_MAX_MAIL_SIZE, 0);
 
 
   /* write endpoint id to device */
@@ -759,6 +809,73 @@ void release_ind(unsigned char *buf) {
 
 
 
+void nvs_update_ind(unsigned char *MailPtr) {
+
+	/*Update the NVS*/
+	int i;
+	DECT_NVS_DATA nvsData;
+	cmsLog_notice("INPUT: API_FP_LINUX_NVS_UPDATE_IND\n");
+
+	nvsData.offset = ((ApiFpLinuxNvsUpdateIndType*) MailPtr)->NvsOffset;
+	nvsData.nvsDataLength = ((ApiFpLinuxNvsUpdateIndType*) MailPtr)->NvsDataLength;
+	nvsData.nvsDataPtr = (unsigned char *)&(((ApiFpLinuxNvsUpdateIndType*) MailPtr)->NvsData);
+
+	printf("Offset: %x\n", nvsData.offset);
+	printf("Length: %x\n", nvsData.nvsDataLength);
+	
+	memcpy(nvs_buf + nvsData.offset, nvsData.nvsDataPtr, nvsData.nvsDataLength);
+	
+	/* write data to flash */
+	nvs_save();
+
+	/* save NVS data to local copy */
+	/* dectNvsCtlSetData(&nvsData); */
+
+}
+
+
+
+
+
+
+
+static void get_eeprom_cfm(unsigned char *MailPtr)
+{
+	int i = 0;
+	unsigned char *Data;
+
+	if ( ((ApiFpSetEepromCfmType*) MailPtr)->Status == RSS_SUCCESS ) {
+		printf("bah 1\n");
+		printf("%d byte(s) from EEPROM address 0x%04X fetched successfully !",
+			      ((ApiFpGetEepromCfmType*) MailPtr)->DataLength,
+			      ((ApiFpGetEepromCfmType*) MailPtr)->Address);
+		
+		Data = (unsigned char *)malloc(((((ApiFpGetEepromCfmType*) MailPtr)->DataLength)*sizeof(unsigned char)) + 1); 
+		memcpy(Data,((ApiFpGetEepromCfmType*) MailPtr)->Data, 
+		       (((ApiFpGetEepromCfmType*) MailPtr)->DataLength)*sizeof(unsigned char));
+		
+		memcpy(nvs_buf + ((ApiFpGetEepromCfmType*) MailPtr)->Address, ((ApiFpGetEepromCfmType*) MailPtr)->Data, 
+		       (((ApiFpGetEepromCfmType*) MailPtr)->DataLength)*sizeof(unsigned char));
+		nvs_dump();
+		printf("\nByte(s) fetched");
+		printf("address: %d\n", ((ApiFpGetEepromCfmType*) MailPtr)->Address);
+
+		if(Data != NULL) {
+			for(; i <((ApiFpGetEepromCfmType*) MailPtr)->DataLength ;i++) {
+				if ((i % 8) == 0)
+					printf("\n");
+				printf("0x%02X\t",*(Data + i));
+			}
+			printf("\n");
+		}
+	} else {
+
+		printf("Failed to get %d byte(s) from EEPROM address %04X ! error code = %d",
+		       ((ApiFpGetEepromCfmType*) MailPtr)->DataLength,
+		       ((ApiFpGetEepromCfmType*) MailPtr)->Address,
+		       ((ApiFpGetEepromCfmType*) MailPtr)->Status);
+	}
+}
 
 
 void handle_packet(unsigned char *buf) {
@@ -766,7 +883,7 @@ void handle_packet(unsigned char *buf) {
   RosPrimitiveType primitive;
   
   primitive = ((recDataType *) buf)->PrimitiveIdentifier;
-      
+  
   switch (primitive) {
 	
   case API_FP_CC_SETUP_IND:
@@ -790,11 +907,12 @@ void handle_packet(unsigned char *buf) {
 
   case API_FP_CC_INFO_IND:
     printf("API_FP_CC_INFO_IND\n");
-    send(ast_sock, buf, API_FP_LINUX_MAX_MAIL_SIZE, 0);
+    send(proxy, buf, API_FP_LINUX_MAX_MAIL_SIZE, 0);
     break;
 
   case API_FP_LINUX_NVS_UPDATE_IND:
     printf("API_FP_LINUX_NVS_UPDATE_IND\n");
+    nvs_update_ind(buf);
     break;
 
   case API_FP_MM_HANDSET_PRESENT_IND:
@@ -813,8 +931,10 @@ void handle_packet(unsigned char *buf) {
     printf("API_FP_LINUX_INIT_CFM\n");
     break;
 
-
-
+  case API_FP_GET_EEPROM_CFM:
+    printf("API_FP_GET_EEPROM_CFM\n");
+    get_eeprom_cfm(buf);
+    break;
 
   default:
     printf("Unknown packet\n");
@@ -824,7 +944,8 @@ void handle_packet(unsigned char *buf) {
 
 }
 
-int connect_asterisk(void) {
+
+int connect_proxy(void) {
 
   int len;
   struct sockaddr_in remote_addr;
@@ -835,17 +956,17 @@ int connect_asterisk(void) {
   remote_addr.sin_addr.s_addr = inet_addr("127.0.0.1");
   remote_addr.sin_port = htons(7777);
   
-  if ((ast_sock = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
+  if ((proxy = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
     perror("socket");
     return -1;
   }
 
-  if (connect(ast_sock, (struct sockaddr *)&remote_addr, sizeof(struct sockaddr)) < 0) {
+  if (connect(proxy, (struct sockaddr *)&remote_addr, sizeof(struct sockaddr)) < 0) {
     perror("connect");
     return -1;
   }
 
-  printf("connected to asterisk\n");
+  printf("connected to proxy\n");
 
   return 0;
 }
@@ -860,40 +981,49 @@ int daemonize(void)
   int res, len, i;
   fd_set rfds;
   ENDPT_STATE endptState;
-  
-  
-  if (connect_asterisk() < 0) {
-    perror("connect_asterisk");
-    return -1;
-  }
+  int pkt_len;
+
+  dect_init();
+
+  joe_dectNvsCtlGetData(nvs_buf);
+  /* if (connect_proxy() < 0) { */
+  /*   perror("connect_proxy"); */
+  /*   return -1; */
+  /* } */
 
   /* Read loop */
-  FD_SET(apifd, &rd_fdset);
-
+  FD_SET(proxy, &rd_fdset);
+  fd_max = proxy;
+  
   while (1) {
     
     memcpy(&rfds, &rd_fdset, sizeof(fd_set));
-    
+
     if (res = select(fd_max + 1, &rfds, NULL, NULL, NULL) < 0) {
       perror("select");
       return -1;
     }
 
-    if (FD_ISSET(apifd, &rfds)) {
-    
-      len = read(apifd, buf, sizeof(buf));
-      
-      if (len > 0) {
+    if (FD_ISSET(proxy, &rfds)) {
+	    
+	    len = read(proxy, buf, 2);
+	    pkt_len = buf[0] << 8; // MSB
+	    pkt_len |= buf[1];     // LSB
 
-	/* debug printout */
-	printf("\n[RDECT][%04d] - ", len);
-	for (i = 0; i < len; i++)
-	  printf("%02x ", buf[i]);
-	printf("\n");
+	    printf("packet len: %d\n", pkt_len);
+	    len = read(proxy, buf, pkt_len);
 
-      }
-      
-      handle_packet(buf);
+	    if (len > 0) {
+
+		    /* debug printout */
+		    printf("\n[RDECT][%04d] - ", len);
+		    for (i = 0; i < len; i++)
+			    printf("%02x ", buf[i]);
+		    printf("\n");
+
+	    }
+	    
+	    handle_packet(buf);
 
     }
 
@@ -916,7 +1046,7 @@ void nvs_dump(void)
 	int fd, ret;
 	unsigned char *buf;
 
-	fd = open("/root/nvs", O_RDWR | O_CREAT);
+	fd = open("/root/nvs_dump", O_RDWR | O_CREAT);
 	if (ret == -1) {
 		perror("open");
 		exit(EXIT_FAILURE);
@@ -924,10 +1054,39 @@ void nvs_dump(void)
 
 	buf = (ApiFpLinuxInitReqType*) malloc(API_FP_LINUX_NVS_SIZE);
 
-	dectNvsCtlGetData(buf);
+	joe_dectNvsCtlGetData(buf);
 	/* memcpy( buf, &DectNvsData[0], API_FP_LINUX_NVS_SIZE); */
 
-	write(fd, (void *)(buf), API_FP_LINUX_NVS_SIZE);
+	write(fd, (void *)(nvs_buf), API_FP_LINUX_NVS_SIZE);
+}
+
+
+
+void nvs_save(void)
+{
+	int fd, ret;
+	unsigned char *buf;
+
+	fd = open("/root/nvs", O_RDWR | O_CREAT);
+	if (ret == -1) {
+		perror("open");
+		exit(EXIT_FAILURE);
+	}
+
+	write(fd, (void *)(nvs_buf), API_FP_LINUX_NVS_SIZE);
+	if (ret == -1) {
+		perror("write");
+		exit(EXIT_FAILURE);
+	}
+	
+	close(fd);
+}
+
+
+static void get_eeprom_data(void)
+{
+	dectCtlImplGetDectMode();
+
 }
 
 
@@ -940,18 +1099,19 @@ int main(int argc, char **argv)
   int dflag = 0;
   int lflag = 0;
   int nflag = 0;
+  int eflag = 0;
   int index, ret , c;
 
 
-  //  printf("dectmngr1 \n");
-  if (ret = open_file(&apifd, "/dev/dect") < 0)
+
+  if (connect_proxy() < 0)
     return -1;
 
   printf("dectmngr\n");
 
   /* bosInit(); */
 
-  while ((c = getopt (argc, argv, "rispdln")) != -1)
+  while ((c = getopt (argc, argv, "rispdlne")) != -1)
     switch (c)
       {
       case 'r':
@@ -974,6 +1134,9 @@ int main(int argc, char **argv)
 	break;
       case 'n':
 	nflag=1;
+	break;
+      case 'e':
+	eflag=1;
 	break;
       case '?':
 	if (optopt == 'c')
@@ -1014,6 +1177,9 @@ int main(int argc, char **argv)
 
   if(nflag)
 	  nvs_dump();
+
+  if(eflag)
+	  get_eeprom_data();
 
 
   return 0;
