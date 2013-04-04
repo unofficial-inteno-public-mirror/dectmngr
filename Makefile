@@ -4,7 +4,7 @@
 %.o: %.c
 	$(CC) -c $(CFLAGS) $(INCLUDE_PATHS) -o $@ $<
 
-OBJS = dectmngr.o DectNvsDefaultImage.o dectLasMailProcess.o
+OBJS = dectmngr.o DectNvsDefaultImage.o
 CFLAGS += -I$(BUILD_DIR)/bcmkernel-4.12/4.12L.04/bcmdrivers/broadcom/include/bcm963xx/
 CFLAGS += -I$(BUILD_DIR)/bcmkernel-4.12/4.12L.04/bcmdrivers/opensource/include/bcm963xx/
 CFLAGS += -I$(BUILD_DIR)/bcmkernel-4.12/4.12L.04/xChange/dslx_common/voice_res_gw/endpt/inc/
@@ -53,13 +53,10 @@ all: main
 
 dynamic: all
 
-main: $(OBJS) dectproxy testclient
+main: $(OBJS) dectproxy
 	$(CC) $(LDFLAGS) $(INCLUDE_PATHS) -o dectmngr $(OBJS)
 
 dectproxy: dectproxy.o
-	$(CC) $(LDFLAGS) $(INCLUDE_PATHS) -o $@ $<
-
-testclient: testclient.o
 	$(CC) $(LDFLAGS) $(INCLUDE_PATHS) -o $@ $<
 
 
