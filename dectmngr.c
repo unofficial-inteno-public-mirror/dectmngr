@@ -1,4 +1,6 @@
 
+#define DECT_MAX_HANDSET 6
+
 #include <dectctl.h>
 #include <stdio.h>
 #include <sys/ioctl.h>
