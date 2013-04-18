@@ -57,6 +57,8 @@ int endpt_init(void);
 void signal_dialtone(int i);
 void connect_cfm(unsigned char *buf);
 void nvs_update_ind(unsigned char *buf);
+void get_handset_ipui(int handset);
+
 
 
 void RevertByteOrder(int length, unsigned char* data) 
@@ -584,13 +586,67 @@ void registration_count_cfm(unsigned char *mail) {
                handset = ((ApiFpMmGetRegistrationCountCfmType*) mail)->HandsetId[i];
                //dectUtilSetHandsetPresent (handset, TRUE);
                printf("Handset (%d) registered\n", handset );
+	       get_handset_ipui(handset);
+	       
             }
 
 	 }
 	 
-	 exit(0);
+	 
+	 //exit(0);
 }
 
+
+void get_handset_ipui(int handset) {  
+
+	unsigned char *tempPtr = NULL;  
+	printf("get_handset_ipui: %d\n", handset);
+
+	tempPtr = (unsigned char*) malloc(4);
+	if (tempPtr == NULL) {
+		printf("No more memory!!!");
+		return;
+	}
+
+
+	*(tempPtr+0) = 0; // Length MSB
+	*(tempPtr+1) = 3; // Length LSB
+	*(tempPtr+2) = (unsigned char) ((API_FP_MM_GET_HANDSET_IPUI_REQ&0xff00)>>8); // Primitive MSB
+	*(tempPtr+3) = (unsigned char) (API_FP_MM_GET_HANDSET_IPUI_REQ&0x00ff);      // Primitive LSB
+	*(tempPtr+4) = handset;
+
+	write_frame(tempPtr);
+
+	return 0;
+
+
+}
+
+
+
+void handset_ipui_cfm(unsigned char *mail) {  
+
+	int handset;
+
+         printf("INPUT: API_FP_MM_GET_HANDSET_IPUI_CFM\n");
+
+         handset = ((ApiFpMmGetHandsetIpuiCfmType *) mail)->HandsetId;
+
+         if ( ((ApiFpMmGetHandsetIpuiCfmType*) mail)->Status == RSS_SUCCESS )
+         {
+            printf("INPUT: HANDSET %d, IPUI %x %x %x %x %x\n",
+                     handset,
+                     ((ApiFpMmGetHandsetIpuiCfmType *) mail)->IPUI[0],
+                     ((ApiFpMmGetHandsetIpuiCfmType *) mail)->IPUI[1],
+                     ((ApiFpMmGetHandsetIpuiCfmType *) mail)->IPUI[2],
+                     ((ApiFpMmGetHandsetIpuiCfmType *) mail)->IPUI[3],
+                     ((ApiFpMmGetHandsetIpuiCfmType *) mail)->IPUI[4] );
+	 }
+
+
+
+
+}
 
 
 void connect_cfm(unsigned char *buf) {  
@@ -708,8 +764,14 @@ void handle_packet(unsigned char *buf) {
     printf("API_FP_MM_HANDSET_PRESENT_IND\n");
     break;
 
+
   case API_FP_MM_SET_REGISTRATION_MODE_CFM:
     printf("API_FP_MM_SET_REGISTRATION_MODE_CFM\n");
+    break;
+
+  case API_FP_MM_GET_HANDSET_IPUI_CFM:
+    printf("API_FP_MM_GET_HANDSET_IPUI_CFM\n");
+    handset_ipui_cfm(buf);
     break;
 
   case API_FP_MM_GET_REGISTRATION_COUNT_CFM:
