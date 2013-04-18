@@ -45,6 +45,7 @@ unsigned char nvs_buf[API_FP_LINUX_NVS_SIZE];
 int register_handsets_start(void);
 int register_handsets_stop(void);
 int ping_handsets(void);
+int list_handsets(void);
 void dectDrvWrite(void *data, int size);
 int write_frame(unsigned char *fr);
 int daemonize(void);
@@ -157,6 +158,34 @@ int register_handsets_stop(void)
 int ping_handsets(void) {
   
 	printf("ping_handsets\n");
+
+	return 0;
+}
+
+
+
+int list_handsets(void) {
+  
+	unsigned char *tempPtr = NULL;
+
+	printf("list_handsets\n");
+
+        printf("OUTPUT: API_FP_MM_GET_REGISTRATION_COUNT_REQ\n");
+
+	tempPtr = (unsigned char*) malloc(4);
+	if (tempPtr == NULL) {
+		printf("No more memory!!!");
+		return;
+	}
+
+	*(tempPtr+0) = 0; // Length MSB
+	*(tempPtr+1) = 2; // Length LSB
+	*(tempPtr+2) = (unsigned char) ((API_FP_MM_GET_REGISTRATION_COUNT_REQ&0xff00)>>8); // Primitive MSB
+	*(tempPtr+3) = (unsigned char) (API_FP_MM_GET_REGISTRATION_COUNT_REQ&0x00ff);      // Primitive LSB
+
+	write_frame(tempPtr);
+
+	daemonize();
 
 	return 0;
 }
@@ -533,11 +562,34 @@ void ApiFreeInfoElement(ApiInfoElementType **IeBlockPtr)
 /*    } */
 /* } */
 
+void registration_count_cfm(unsigned char *mail) {  
 
+	int i, handset;
 
+         printf("INPUT: API_FP_MM_GET_REGISTRATION_COUNT_CFM\n");
+         if ( ((ApiFpMmGetRegistrationCountCfmType*) mail)->Status == RSS_SUCCESS )
+         {
+            /* Pass the information to the endpoint (controller).
+            */
+            DECT_REG_CNT regCnt;
 
+            printf("Max Number of Handset allowed: %d\n", ((ApiFpMmGetRegistrationCountCfmType*) mail)->MaxNoHandsets);
+            regCnt.maxHset = ((ApiFpMmGetRegistrationCountCfmType*) mail)->MaxNoHandsets;
+            regCnt.curHset = ((ApiFpMmGetRegistrationCountCfmType*) mail)->HandsetIdLength;
+            
+            printf("Following Handsets are registered:\n");
+            for ( i = 0 ; i < (((ApiFpMmGetRegistrationCountCfmType*) mail)->HandsetIdLength ) ; i++ )
+            {
+               regCnt.curHsetMap[ i ] = ((ApiFpMmGetRegistrationCountCfmType*) mail)->HandsetId[i];
+               handset = ((ApiFpMmGetRegistrationCountCfmType*) mail)->HandsetId[i];
+               //dectUtilSetHandsetPresent (handset, TRUE);
+               printf("Handset (%d) registered\n", handset );
+            }
 
-
+	 }
+	 
+	 exit(0);
+}
 
 
 
@@ -658,6 +710,11 @@ void handle_packet(unsigned char *buf) {
 
   case API_FP_MM_SET_REGISTRATION_MODE_CFM:
     printf("API_FP_MM_SET_REGISTRATION_MODE_CFM\n");
+    break;
+
+  case API_FP_MM_GET_REGISTRATION_COUNT_CFM:
+    printf("API_FP_MM_GET_REGISTRATION_COUNT_CFM\n");
+    registration_count_cfm(buf);
     break;
 
   case API_FP_MM_REGISTRATION_COMPLETE_IND:
@@ -906,7 +963,7 @@ int main(int argc, char **argv)
 	  daemonize();
 
   if(lflag)
-	  las();
+	  list_handsets();
 
   if(nflag)
 	  nvs_dump();
