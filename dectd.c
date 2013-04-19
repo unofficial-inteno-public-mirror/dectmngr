@@ -153,9 +153,11 @@ int main(void)
 	remote_addr.sin_port = 7777;
 	
 	if ((s = socket(AF_INET, SOCK_STREAM, 0)) == -1)
-		exit_failure("connecting to dectproxy");
+		exit_failure("socket");
 
-
+	if (connect(s, (struct sockaddr *)&remote_addr, sizeof(struct sockaddr)) < 0)
+	    exit_failure("error connecting to dectproxy");
+	
 	fdmax = s;
 	FD_ZERO(&master);
 	FD_SET(s, &master);
@@ -206,34 +208,31 @@ int main(void)
 			
 			len = read(s, buf, 2);
 			
-			pkt_len = buf[0] << 8; // MSB
-			pkt_len |= buf[1];     // LSB
+			if (len == 2) {
+				pkt_len = buf[0] << 8; // MSB
+				pkt_len |= buf[1];     // LSB
 
-			printf("packet len: %d\n", pkt_len);
-			len = recv(s, buf, pkt_len, 0);
+				printf("packet len: %d\n", pkt_len);
+				len = read(s, buf, pkt_len);
+			} else {
+				printf("wrong header length: %d\n", len);
+			}
 
 			if (len > 0) {
 
-				/* debug printout */
+				/* Debug printout */
 				printf("\n[RDECT][%04d] - ", len);
 				for (i = 0; i < len; i++)
 					printf("%02x ", buf[i]);
 				printf("\n");
 
-			}
-
-			ret = recv(s, buf, pkt_len, 0);
-			printf("dect %d\n", ret);
-			if (ret == -1) {
-				exit_failure("read");
-			} else {
 				handle_dect_packet(buf);
 			}
 		}
 
 		/* Check the client connections */
 		for (i = 0; i <= fdmax; i++) {
-			if (i != l && i != d && FD_ISSET(i, &rfds)) {
+			if (i != l && i != s && FD_ISSET(i, &rfds)) {
 				ret = recv(i, buf, sizeof(buf), 0);
 				if (ret == -1) {
 					perror("recv");
