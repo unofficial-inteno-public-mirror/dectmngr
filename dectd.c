@@ -1,3 +1,6 @@
+#define DECT_MAX_HANDSET 6
+
+#include <dectctl.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdarg.h>
@@ -11,6 +14,9 @@
 #include <fcntl.h>
 #include <signal.h>
 #include <unistd.h>
+#include <ApiFpProject.h>
+#include <dectUtils.h>
+#include <dectNvsCtl.h>
 
 
 #define MAX_MAIL_SIZE 4098
@@ -18,7 +24,7 @@
 
 #define MAX(a,b) ((a) > (b) ? (a) : (b))
 
-
+int s;
 struct sigaction act;
 
 void sighandler(int signum, siginfo_t *info, void *ptr)
@@ -183,8 +189,8 @@ int main(void)
 
 		/* Accept new connectons */
 		if (FD_ISSET(l, &rfds)) {
-			peer_addr_size = sizeof(peer_addr);
-			if ((n = accept(l, (struct sockaddr *) &peer_addr, &peer_addr_size)) == -1)
+			remote_addr_size = sizeof(remote_addr);
+			if ((n = accept(l, (struct sockaddr *) &remote_addr, &remote_addr_size)) == -1)
 				exit_failure("accept");
 			else {
 				printf("accepted connection: %d\n", n);
@@ -209,10 +215,10 @@ int main(void)
 			if (len > 0) {
 
 				/* debug printout */
-				ast_verbose("\n[RDECT][%04d] - ", len);
+				printf("\n[RDECT][%04d] - ", len);
 				for (i = 0; i < len; i++)
-					ast_verbose("%02x ", buf[i]);
-				ast_verbose("\n");
+					printf("%02x ", buf[i]);
+				printf("\n");
 
 			}
 
