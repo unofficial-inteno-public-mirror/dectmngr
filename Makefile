@@ -53,8 +53,11 @@ all: main
 
 dynamic: all
 
-main: $(OBJS) dectproxy atohx
+main: $(OBJS) dectproxy atohx dectd
 	$(CC) $(LDFLAGS) $(INCLUDE_PATHS) -o dectmngr $(OBJS)
+
+dectd: dectd.o
+	$(CC) $(LDFLAGS) $(INCLUDE_PATHS) -o $@ $<
 
 dectproxy: dectproxy.o
 	$(CC) $(LDFLAGS) $(INCLUDE_PATHS) -o $@ $<
