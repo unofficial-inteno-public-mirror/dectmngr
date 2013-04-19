@@ -19,13 +19,18 @@
 #include <dectNvsCtl.h>
 
 
-#define MAX_MAIL_SIZE 4098
-#define MAX_LISTENERS 10
+#include "dectd.h"
 
-#define MAX(a,b) ((a) > (b) ? (a) : (b))
 
+
+/* globals */
 int s;
 struct sigaction act;
+dect_state state;
+
+
+
+
 
 void sighandler(int signum, siginfo_t *info, void *ptr)
 {
@@ -48,6 +53,17 @@ void exit_failure(const char *format, ...)
 	exit(EXIT_FAILURE);
 }
 
+
+static update_state(void) {
+
+	if (state.reg_state == DISABLED) {
+		state.reg_state = ENABLED;
+		printf("ENABLED\n");
+	} else {
+		state.reg_state = DISABLED;
+		printf("DISABLED\n");
+	}
+}
 
 
 void handle_dect_packet(unsigned char *buf) {
@@ -88,6 +104,7 @@ void handle_dect_packet(unsigned char *buf) {
 
   case API_FP_MM_SET_REGISTRATION_MODE_CFM:
     printf("API_FP_MM_SET_REGISTRATION_MODE_CFM\n");
+    update_state();
     break;
 
   case API_FP_MM_GET_HANDSET_IPUI_CFM:
@@ -137,6 +154,7 @@ int main(void)
 	uint8_t hdr[2];
 	int client[MAX_LISTENERS];
 
+	
 	/* Setup signal handler. When writing data to a
 	   client that closed the connection we get a
 	   SIGPIPE. We need to catch it to avoid beeing killed */
