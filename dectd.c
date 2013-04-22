@@ -25,7 +25,7 @@
 
 
 /* globals */
-int s;
+int s, c;
 struct sigaction act;
 dect_state state;
 
@@ -136,26 +136,66 @@ void handle_dect_packet(unsigned char *buf) {
 
 }
 
+static send_client(uint8_t status) {
+	
+	packet *p;
+
+	if ((p = (packet *)malloc(sizeof(packet))) == NULL)
+		exit_failure("malloc");
+
+	p->type = RESPONSE;
+	p->arg = status;
+	printf("send_client\n");
+	if (send(c, p, sizeof(packet), 0) == -1)
+		exit_failure("send");
+	
+	free(p);
+
+}
+
+static registration(packet *p) {
+
+	switch (p->arg) {
+		
+	case ENABLED:
+		printf("enable registration\n");
+		send_client(OK);
+		break;
+
+	case DISABLED:
+		printf("disable registration\n");
+		send_client(OK);
+		break;
+
+	default:
+		printf("unknown arg\n");
+		send_client(ERROR);
+		break;
 
 
-void handle_client_packet(client_packet *p) {
+	}
+}
+
+
+void handle_client_packet(packet *p) {
 
 	switch (p->type) {
 
 	case GET_STATUS:
-		printf("GET_STATUS, %d\n", p->size);
+		printf("GET_STATUS, \t%d\n", p->arg);
 		break;
 
 	case REGISTRATION:
-		printf("REGISTRATION, %d\n", p->size);
+		printf("REGISTRATION, \t%d\n", p->arg);
+		registration(p);
 		break;
 
 	case PING_HSET:
-		printf("PING_HSET, %d\n", p->size);
+		printf("PING_HSET, \t%d\n", p->arg);
 		break;
 
 	case DELETE_HSET:
-		printf("DELETE_HSET, %d\n", p->size);
+		printf("DELETE_HSET, \t%d\n", p->arg);
 		break;
 
 	default:
@@ -234,13 +274,13 @@ int main(void)
 		/* Accept new connectons */
 		if (FD_ISSET(l, &rfds)) {
 			remote_addr_size = sizeof(remote_addr);
-			if ((n = accept(l, (struct sockaddr *) &remote_addr, &remote_addr_size)) == -1)
+			if ((c = accept(l, (struct sockaddr *) &remote_addr, &remote_addr_size)) == -1)
 				exit_failure("accept");
 			else {
-				printf("accepted connection: %d\n", n);
+				printf("accepted connection: %d\n", c);
 				/* Add new connection to rfds */
-				FD_SET(n, &master);
-				fdmax = MAX(fdmax, n);
+				FD_SET(c, &master);
+				fdmax = MAX(fdmax, c);
 			}
 		}
 
@@ -272,25 +312,25 @@ int main(void)
 			}
 		}
 
-		/* Check the client connections */
-		for (i = 0; i <= fdmax; i++) {
-			if (i != l && i != s && FD_ISSET(i, &rfds)) {
-				ret = recv(i, buf, sizeof(buf), 0);
-				if (ret == -1) {
-					perror("recv");
-				} else if (ret == 0) {
-					/* Client closed connection */
-					printf("client closed connection\n");
-					if (close(i) == -1)
-						exit_failure("close");
-					FD_CLR(i, &master);
-				} else {
-					handle_client_packet(buf);
-					/* printf("client: %d\n", ret); */
-					/* if (write(d, buf, ret) == -1) */
-					/* 	perror("write dect"); */
-				}
-			}
+		/* Check the client connection */
+		/* for (i = 0; i <= fdmax; i++) { */
+		/* 	if (i != l && i != s && FD_ISSET(i, &rfds)) { */
+		ret = recv(c, buf, sizeof(buf), 0);
+		if (ret == -1) {
+			perror("recv");
+		} else if (ret == 0) {
+			/* Client closed connection */
+			printf("client closed connection\n");
+			if (close(c) == -1)
+				exit_failure("close");
+			FD_CLR(c, &master);
+		} else {
+			handle_client_packet(buf);
+			/* printf("client: %d\n", ret); */
+			/* if (write(d, buf, ret) == -1) */
+			/* 	perror("write dect"); */
+			/* 	} */
+			/* } */
 		}
 	}
 	return 0;

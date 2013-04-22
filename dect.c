@@ -29,17 +29,52 @@ void exit_failure(const char *format, ...)
 
 
 
-int main(void)
-{
-	int d, fdmax, res, l, n, ret, i, len, pkt_len, s;
-	fd_set rfds, master;
-	unsigned char buf[MAX_MAIL_SIZE];
-	struct sockaddr_in my_addr, remote_addr;
-	socklen_t remote_addr_size;
-	uint8_t hdr[2];
-	int client[MAX_LISTENERS];
-	client_packet *p;
+static handle_response(packet *p) {
 
+	switch (p->arg) {
+		
+	case OK:
+		printf("OK\n");
+		break;
+
+	case ERROR:
+		printf("ERROR\n");
+		break;
+	}
+		
+
+}
+
+
+static set_registration(uint8_t s, uint8_t mode) {
+
+	packet *p;
+
+	if ((p = (packet *)malloc(sizeof(packet))) == NULL)
+		exit_failure("malloc");
+
+	p->type = REGISTRATION;
+	p->arg = mode;
+	
+	if (send(s, p, sizeof(packet), 0) == -1)
+		exit_failure("send");
+
+	if (recv(s, p, sizeof(packet), 0) == -1)
+		exit_failure("recv");
+
+	handle_response(p);
+
+	free(p);
+}
+
+
+
+int establish_connection(void) {
+
+	int s;
+
+	struct sockaddr_in remote_addr;
+	socklen_t remote_addr_size;
 
 	/* Connect to dectd */
 	memset(&remote_addr, 0, sizeof(remote_addr));
@@ -51,36 +86,20 @@ int main(void)
 		exit_failure("socket");
 
 	if (connect(s, (struct sockaddr *)&remote_addr, sizeof(struct sockaddr)) < 0)
-	    exit_failure("error connecting to dectproxy");
-
-	if ((p = (client_packet *)malloc(sizeof(client_packet))) == NULL)
-		exit_failure("malloc");
-
-
-	p->type = PING_HSET;
-	p->size = 1;
+		exit_failure("error connecting to dectproxy");
 	
-	if (send(s, p, sizeof(client_packet), 0) == -1)
-		exit_failure("send");
-
-	p->type = GET_STATUS;
-	p->size = 2;
-	
-	if (send(s, p, sizeof(client_packet), 0) == -1)
-		exit_failure("send");
-
-	p->type = REGISTRATION;
-	p->size = 3;
-	
-	if (send(s, p, sizeof(client_packet), 0) == -1)
-		exit_failure("send");
-
-	p->type = DELETE_HSET;
-	p->size = 4;	
-
-	if (send(s, p, sizeof(client_packet), 0) == -1)
-		exit_failure("send");
+	return s;
+}
 
 
-	
+int main(void) {
+
+	int s;
+
+	s = establish_connection();
+
+	set_registration(s, ENABLED);
+
+	set_registration(s, DISABLED);
+
 }

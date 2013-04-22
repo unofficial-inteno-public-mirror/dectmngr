@@ -21,23 +21,24 @@ enum reg_state {
 };
 
 
-enum client_req_type {
+enum packet_type {
 	GET_STATUS,
 	REGISTRATION,
 	PING_HSET,
 	DELETE_HSET,
+	RESPONSE,
 };
 
-enum client_resp_type {
+enum packet_resp_type {
 	OK,
 	ERROR,
-	STATUS,
+	DATA,
 };
 
 
-typedef struct client_packet {
+typedef struct packet {
 	uint8_t type;
-	uint8_t size;
-} client_packet;
+	uint8_t arg;
+} packet;
 
 #endif /* DECT_H */
