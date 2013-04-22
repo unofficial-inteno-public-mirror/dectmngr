@@ -153,17 +153,107 @@ static send_client(uint8_t status) {
 
 }
 
+
+
+int register_handsets_start(void)
+{
+  
+  unsigned char *tempPtr = NULL;  
+  printf("register_handsets_start\n");
+
+  tempPtr = (unsigned char*) malloc(4);
+  if (tempPtr == NULL)
+    {
+      printf("No more memory!!!");
+      return;
+    }
+
+
+  *(tempPtr+0) = 0; // Length MSB
+  *(tempPtr+1) = 3; // Length LSB
+  *(tempPtr+2) = (unsigned char) ((API_FP_MM_SET_REGISTRATION_MODE_REQ&0xff00)>>8); // Primitive MSB
+  *(tempPtr+3) = (unsigned char) (API_FP_MM_SET_REGISTRATION_MODE_REQ&0x00ff);      // Primitive LSB
+  *(tempPtr+4) = 1; //disable registration
+
+  write_frame(tempPtr);
+
+  return 0;
+}
+
+
+
+void dectDrvWrite(void *data, int size)
+{   
+    int i;
+    unsigned char* cdata = (unsigned char*)data;
+    printf("\n[WDECT][%04d] - ",size);
+
+    for (i=0 ; i<size ; i++) {
+        printf("%02x ",cdata[i]);
+    }
+    printf("\n");
+
+   if (-1 == write(s, data, size))
+   {
+      perror("write to API failed");
+      return;
+   }
+
+   return;
+}
+
+
+
+int write_frame(unsigned char *fr)
+{
+  unsigned short fr_size = 256*fr[0] + fr[1] + 1;
+      
+  dectDrvWrite((void *)(fr+2), fr_size);
+
+  return 0;
+}
+
+
+int register_handsets_stop(void)
+{
+
+  unsigned char *tempPtr = NULL;
+  
+  printf("register_handsets_stop\n");
+
+  tempPtr = (unsigned char*) malloc(5);
+  if (tempPtr == NULL)
+    {
+      printf("No more memory!!!");
+      return;
+    }
+
+  *(tempPtr+0) = 0; // Length MSB
+  *(tempPtr+1) = 3; // Length LSB
+  *(tempPtr+2) = (unsigned char) ((API_FP_MM_SET_REGISTRATION_MODE_REQ&0xff00)>>8); // Primitive MSB
+  *(tempPtr+3) = (unsigned char) (API_FP_MM_SET_REGISTRATION_MODE_REQ&0x00ff);      // Primitive LSB
+  *(tempPtr+4) = 0; //disable registration
+
+  write_frame(tempPtr);
+
+  return 0;
+}
+
+
+
 static registration(packet *p) {
 
 	switch (p->arg) {
 		
 	case ENABLED:
 		printf("enable registration\n");
+		register_handsets_start();
 		send_client(OK);
 		break;
 
 	case DISABLED:
 		printf("disable registration\n");
+		register_handsets_stop();
 		send_client(OK);
 		break;
 
@@ -313,24 +403,24 @@ int main(void)
 		}
 
 		/* Check the client connection */
-		/* for (i = 0; i <= fdmax; i++) { */
-		/* 	if (i != l && i != s && FD_ISSET(i, &rfds)) { */
-		ret = recv(c, buf, sizeof(buf), 0);
-		if (ret == -1) {
-			perror("recv");
-		} else if (ret == 0) {
-			/* Client closed connection */
-			printf("client closed connection\n");
-			if (close(c) == -1)
-				exit_failure("close");
-			FD_CLR(c, &master);
-		} else {
-			handle_client_packet(buf);
-			/* printf("client: %d\n", ret); */
-			/* if (write(d, buf, ret) == -1) */
-			/* 	perror("write dect"); */
-			/* 	} */
-			/* } */
+		if (FD_ISSET(c, &rfds)) {
+			ret = recv(c, buf, sizeof(buf), 0);
+			if (ret == -1) {
+				perror("recv");
+			} else if (ret == 0) {
+				/* Client closed connection */
+				printf("client closed connection\n");
+				if (close(c) == -1)
+					exit_failure("close");
+				FD_CLR(c, &master);
+			} else {
+				handle_client_packet(buf);
+				/* printf("client: %d\n", ret); */
+				/* if (write(d, buf, ret) == -1) */
+				/* 	perror("write dect"); */
+				/* 	} */
+				/* } */
+			}
 		}
 	}
 	return 0;

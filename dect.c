@@ -101,5 +101,6 @@ int main(void) {
 	set_registration(s, ENABLED);
 
 	set_registration(s, DISABLED);
-
+	
+	return 0;
 }
