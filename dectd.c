@@ -16,6 +16,7 @@
 #include <unistd.h>
 #include <ApiFpProject.h>
 #include <dectUtils.h>
+#include <stdint.h>
 #include <dectNvsCtl.h>
 
 
@@ -137,9 +138,32 @@ void handle_dect_packet(unsigned char *buf) {
 
 
 
-void handle_client_packet(unsigned char *buf) {
+void handle_client_packet(client_packet *p) {
 
-	printf("client packet\n");
+	switch (p->type) {
+
+	case GET_STATUS:
+		printf("GET_STATUS, %d\n", p->size);
+		break;
+
+	case REGISTRATION:
+		printf("REGISTRATION, %d\n", p->size);
+		break;
+
+	case PING_HSET:
+		printf("PING_HSET, %d\n", p->size);
+		break;
+
+	case DELETE_HSET:
+		printf("DELETE_HSET, %d\n", p->size);
+		break;
+
+	default:
+		printf("unknown packet\n");
+		break;
+
+	}	  
+
 }
 
 
