@@ -47,15 +47,15 @@ void exit_failure(const char *format, ...)
 
 static send_client(struct bufferevent *bev, uint8_t status) {
 	
-	packet *p;
+	packet_t *p;
 
-	if ((p = (packet *)malloc(sizeof(packet))) == NULL)
+	if ((p = (packet_t *)malloc(sizeof(packet_t))) == NULL)
 		perror("failure");
 
 	p->type = RESPONSE;
-	p->arg = status;
+
 	printf("send_client\n");
-	bufferevent_write(bev, p, sizeof(p));
+	bufferevent_write(bev, p, sizeof(packet_t));
 	
 	free(p);
 
@@ -92,7 +92,7 @@ void dectDrvWrite(void *data, int size)
 {   
     int i;
     unsigned char* cdata = (unsigned char*)data;
-    printf("\n[WDECT][%04d] - ",size);
+    printf("[WDECT][%04d] - ",size);
 
     for (i=0 ; i<size ; i++) {
         printf("%02x ",cdata[i]);
@@ -156,6 +156,12 @@ void reg_timer(void) {
 void handle_dect_packet(unsigned char *buf) {
 
   RosPrimitiveType primitive;
+
+  /* /\* Dump the packet. *\/ */
+  /* printf("[RDECT][%04d] - ", buf->size); */
+  /* for (i=0 ; i<n ; i++) */
+  /* 	  printf("%02x ", buf->data[i]); */
+  /* printf("\n"); */
   
   primitive = ((recDataType *) buf)->PrimitiveIdentifier;
   
@@ -222,62 +228,49 @@ void handle_dect_packet(unsigned char *buf) {
 }
 
 
-static set_reg_timeout(void) {
+
+
+static registration(struct bufferevent *bev, packet_t *p) {
 
 	struct timeval tv = {5,0};
 	struct event *timeout;
 	
-	timeout = event_new(base, -1, NULL, register_handsets_stop, NULL);
+
+	printf("enable registration\n");
+	register_handsets_start();
+	timeout = event_new(base, -1, EV_TIMEOUT, (void *)register_handsets_stop, NULL);
 	event_add(timeout, &tv);
+	
+	send_client(bev, OK);
 }
 
 
-static registration(struct bufferevent *bev, packet *p) {
+static get_status(struct bufferevent *bev) {
 
-	switch (p->arg) {
-		
-	case ENABLED:
-		printf("enable registration\n");
-		register_handsets_start();
-		set_reg_timeout();
-		send_client(bev, OK);
-		break;
-
-	case DISABLED:
-		printf("disable registration\n");
-		register_handsets_stop();
-		send_client(bev, OK);
-		break;
-
-	default:
-		printf("unknown arg\n");
-		send_client(bev, ERROR);
-		break;
-
-
-	}
+	
 }
 
 
-void handle_client_packet(struct bufferevent *bev, packet *p) {
+void handle_client_packet(struct bufferevent *bev, packet_t *p) {
 
 	switch (p->type) {
 
 	case GET_STATUS:
-		printf("GET_STATUS, \t%d\n", p->arg);
+		printf("GET_STATUS\n");
+		get_status(bev);
 		break;
 
 	case REGISTRATION:
-		printf("REGISTRATION, \t%d\n", p->arg);
+		printf("REGISTRATION\n");
 		registration(bev, p);
 		break;
 
 	case PING_HSET:
-		printf("PING_HSET, \t%d\n", p->arg);
+		printf("PING_HSET\n");
 		break;
 
 	case DELETE_HSET:
-		printf("DELETE_HSET, \t%d\n", p->arg);
+		printf("DELETE_HSET\n");
 		break;
 
 	default:
@@ -298,7 +291,7 @@ void readcb(struct bufferevent *bev, void *ctx) {
 	printf("readcb\n");
 
 	while ((n = evbuffer_remove(input, buf, sizeof(buf))) > 0) {
-		handle_client_packet(bev, buf);
+		handle_client_packet(bev, (packet_t *)buf);
 	}
 }
 
@@ -308,17 +301,15 @@ void dect_read(struct bufferevent *bev, void *ctx) {
 	
 	uint8_t *buf;
 	int n, i, read;
-	struct data_packet *pkt = ctx;
+	packet_t *pkt = ctx;
 	struct evbuffer *input = bufferevent_get_input(bev);
-	struct packet_header hdr;
 
 	/* Do we have a packet header? */
-	if (!pkt->size && (evbuffer_get_length(input) >= sizeof(hdr))) {
+	if (!pkt->size && (evbuffer_get_length(input) >= sizeof(packet_header_t))) {
 		
-		n = evbuffer_remove(input, &hdr, sizeof(hdr));
+		n = evbuffer_remove(input, pkt, sizeof(packet_header_t));
 
-		pkt->size = hdr.size;
-		pkt->type = hdr.type;
+		printf("pkt->size: %d\n", pkt->size);
 
 		pkt->data = (uint8_t *)malloc(pkt->size);
 	}
@@ -328,18 +319,46 @@ void dect_read(struct bufferevent *bev, void *ctx) {
 
 		n = evbuffer_remove(input, pkt->data, pkt->size);
 		
-		/* Dump the packet. */
-		printf("[RDECT][%04d] - ", pkt->size);
-		for (i=0 ; i<n ; i++)
-			printf("%02x ", pkt->data[i]);
-		printf("\n");
-		
 		handle_dect_packet(pkt->data);
 		
 		/* Reset packet struct */
 		free(pkt->data);
 		memset(pkt, 0, sizeof(pkt));
 	}
+
+}
+
+
+void client_read(struct bufferevent *bev, void *ctx) {
+	
+	uint8_t *buf;
+	int n, i, read;
+	packet_t *pkt = ctx;
+	struct evbuffer *input = bufferevent_get_input(bev);
+
+	printf("client read\n");
+	/* Do we have a packet header? */
+	if (!pkt->size && (evbuffer_get_length(input) >= sizeof(packet_header_t))) {
+		
+		n = evbuffer_remove(input, pkt, sizeof(packet_header_t));
+
+		printf("pkt->size: %d\n", pkt->size);
+
+		pkt->data = (uint8_t *)malloc(pkt->size);
+	}
+	printf("client read 1\n");
+	/* Is there an entire packet in the buffer? */
+	if (evbuffer_get_length(input) >= pkt->size - sizeof(packet_header_t)) {
+		printf("client read 1.1\n");
+		n = evbuffer_remove(input, pkt->data, pkt->size);
+		
+		handle_client_packet(bev, pkt);
+		
+		/* Reset packet struct */
+		free(pkt->data);
+		memset(pkt, 0, sizeof(pkt));
+	}
+	printf("client read 2\n");
 
 }
 
@@ -364,7 +383,12 @@ void do_accept(evutil_socket_t listener, short event, void *arg) {
 	struct sockaddr_storage ss;
 	socklen_t slen = sizeof(ss);
 	int fd = accept(listener, (struct sockaddr*)&ss, &slen);
+	packet_t *pkt = calloc(sizeof(packet_t), 1);
+
 	printf("accepted client connection\n");
+	/* Setup dect bufferevent */
+
+
 	if (fd < 0) {
 		perror("accept");
 	} else if (fd > FD_SETSIZE) {
@@ -373,7 +397,7 @@ void do_accept(evutil_socket_t listener, short event, void *arg) {
 		struct bufferevent *bev;
 		evutil_make_socket_nonblocking(fd);
 		bev = bufferevent_socket_new(base, fd, BEV_OPT_CLOSE_ON_FREE);
-		bufferevent_setcb(bev, readcb, NULL, errorcb, NULL);
+		bufferevent_setcb(bev, client_read, NULL, errorcb, pkt);
 		bufferevent_setwatermark(bev, EV_READ, 0, MAX_LINE);
 		bufferevent_enable(bev, EV_READ | EV_WRITE);
 	}
@@ -409,7 +433,7 @@ void run(void) {
 	proxy.sin_port = htons(7777);
 
 	/* Setup dect bufferevent */
-	dect_pkt = calloc(sizeof(struct data_packet), 1);
+	dect_pkt = calloc(sizeof(packet_t), 1);
 	
 	dect = bufferevent_socket_new(base, -1, BEV_OPT_CLOSE_ON_FREE);
 	bufferevent_setcb(dect, dect_read, NULL, dect_event, dect_pkt);

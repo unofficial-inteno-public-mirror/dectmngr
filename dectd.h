@@ -28,6 +28,7 @@ enum packet_type {
 	DELETE_HSET,
 	RESPONSE,
 	DECT_PACKET,
+	CLIENT_PACKET,
 };
 
 enum packet_resp_type {
@@ -37,22 +38,32 @@ enum packet_resp_type {
 };
 
 
+#define PACKET_HEADER \
+	uint32_t size; \
+	uint8_t type;
+	
+
 typedef struct packet {
-	uint8_t type;
-	uint8_t arg;
-} packet;
-
-
-struct packet_header {
-	uint32_t size;
-	uint8_t type;
-};
-
-struct data_packet {
-	uint32_t size;
-	uint8_t type;
+	PACKET_HEADER
 	uint8_t *data;
-};
+} packet_t;
+
+typedef struct client_packet {
+	PACKET_HEADER
+	uint8_t arg;
+} client_packet;
+
+
+
+typedef struct packet_header {
+	PACKET_HEADER
+} packet_header_t;
+
+/* struct data_packet { */
+/* 	uint32_t size; */
+/* 	uint8_t type; */
+/* 	uint8_t *data; */
+/* }; */
 
 
 #endif /* DECT_H */

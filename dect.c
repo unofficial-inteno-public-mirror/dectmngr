@@ -30,41 +30,45 @@ void exit_failure(const char *format, ...)
 
 
 
-static handle_response(packet *p) {
+/* static handle_response(packet_t *p) { */
 
-	switch (p->arg) {
+/* 	switch (p->arg) { */
 		
-	case OK:
-		printf("OK\n");
-		break;
+/* 	case OK: */
+/* 		printf("OK\n"); */
+/* 		break; */
 
-	case ERROR:
-		printf("ERROR\n");
-		break;
-	}
+/* 	case ERROR: */
+/* 		printf("ERROR\n"); */
+/* 		break; */
+/* 	} */
 		
 
-}
+/* } */
 
 
 static set_registration(uint8_t s, uint8_t mode) {
 
-	packet *p;
+	client_packet *p;
 	char nl = '\n';
+	int sent;
 
-	if ((p = (packet *)malloc(sizeof(packet))) == NULL)
+	if ((p = (client_packet *)malloc(sizeof(client_packet))) == NULL)
 		exit_failure("malloc");
 
+	p->size = sizeof(client_packet);
 	p->type = REGISTRATION;
-	p->arg = mode;
 	
-	if (send(s, p, sizeof(packet), 0) == -1)
+	printf("p->size: %d\n", p->size);
+	
+	if ((sent = send(s, p, p->size, 0)) == -1)
 		exit_failure("send");
 
-	if (recv(s, p, sizeof(packet), 0) == -1)
-		exit_failure("recv");
+	printf("sent: %d\n", sent);
+	/* if (recv(s, p, sizeof(packet), 0) == -1) */
+	/* 	exit_failure("recv"); */
 
-	handle_response(p);
+	/* handle_response(p); */
 
 	free(p);
 }
@@ -129,17 +133,17 @@ int main(int argc, char *argv[]) {
 		set_registration(s, ENABLED);
 	}
 
-	if (flags & DELETE_HSET) {
-		printf("delete hset\n");
-	}
+	/* if (flags & DELETE_HSET) { */
+	/* 	printf("delete hset\n"); */
+	/* } */
 
-	if (flags & PING_HSET) {
-		printf("ping hset\n");
-	}
+	/* if (flags & PING_HSET) { */
+	/* 	printf("ping hset\n"); */
+	/* } */
 
-	if (flags & GET_STATUS) {
-		printf("get status\n");
-	}
+	/* if (flags & GET_STATUS) { */
+	/* 	printf("get status\n"); */
+	/* } */
 	
 	return 0;
 }
