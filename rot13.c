@@ -297,9 +297,10 @@ void dect_read(struct bufferevent *bev, void *ctx) {
 	struct dect_packet *pkt = ctx;
 	
 	struct evbuffer *input = bufferevent_get_input(bev);
-	
-	if (!pkt->size) {
-		printf("evbuffer_get_lenght: %d\n", evbuffer_get_length(input));
+	printf("dect_read\n");
+	/* Do we have a packet header? */
+	if (!pkt->size && evbuffer_get_length(input) >= 2) {
+		
 		n = evbuffer_remove(input, buf, 2);
 
 		/* use uint and cast instead */
@@ -309,7 +310,7 @@ void dect_read(struct bufferevent *bev, void *ctx) {
 		printf("pkt->size: %d\n", pkt->size);
 	}
 
-	printf("evbuffer_get_length: %d\n", evbuffer_get_length(input));	
+	printf("evbuffer_get_length: %d\n", evbuffer_get_length(input));
 
 	/* Is there an entire packet in the buffer? */
 	if (evbuffer_get_length(input) >= pkt->size) {
@@ -323,7 +324,7 @@ void dect_read(struct bufferevent *bev, void *ctx) {
 		handle_dect_packet(buf);
 		pkt->size = 0;
 	}
-	
+
 }
 
 
@@ -331,7 +332,7 @@ void dect_read(struct bufferevent *bev, void *ctx) {
 void errorcb(struct bufferevent *bev, short error, void *ctx) {
 	
 	if (error & BEV_EVENT_EOF) {
-		printf("connection closed\n");
+		printf("client connection closed\n");
 	} else if (error & BEV_EVENT_ERROR) {
 	} else if (error & BEV_EVENT_TIMEOUT) {
 	}
@@ -347,7 +348,7 @@ void do_accept(evutil_socket_t listener, short event, void *arg) {
 	struct sockaddr_storage ss;
 	socklen_t slen = sizeof(ss);
 	int fd = accept(listener, (struct sockaddr*)&ss, &slen);
-	printf("accepted connection\n");
+	printf("accepted client connection\n");
 	if (fd < 0) {
 		perror("accept");
 	} else if (fd > FD_SETSIZE) {
@@ -398,7 +399,6 @@ void run(void) {
 	
 	dect = bufferevent_socket_new(base, -1, BEV_OPT_CLOSE_ON_FREE);
 	bufferevent_setcb(dect, dect_read, NULL, dect_event, dect_pkt);
-	bufferevent_setwatermark(dect, EV_READ, 2, 0);
 
 	if (bufferevent_socket_connect(dect, (struct sockaddr *)&proxy, sizeof(proxy)) < 0) {
 		bufferevent_free(dect);
