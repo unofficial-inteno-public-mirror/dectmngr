@@ -23,6 +23,7 @@
 
 /* Globals */
 struct bufferevent *dect;
+struct event_base *base;
 
 
 
@@ -67,7 +68,7 @@ int register_handsets_start(void)
   unsigned char *tempPtr = NULL;  
   printf("register_handsets_start\n");
 
-  tempPtr = (unsigned char*) malloc(4);
+  tempPtr = (unsigned char*) malloc(5);
   if (tempPtr == NULL)
     {
       printf("No more memory!!!");
@@ -138,11 +139,17 @@ int register_handsets_stop(void)
 
 int write_frame(unsigned char *fr)
 {
-  unsigned short fr_size = 256*fr[0] + fr[1] + 1;
+  unsigned short fr_size = 256*fr[0] + fr[1];
       
   dectDrvWrite((void *)(fr+2), fr_size);
 
   return 0;
+}
+
+
+void reg_timer(void) {
+
+	printf("reg timer expired\n");
 }
 
 
@@ -215,6 +222,16 @@ void handle_dect_packet(unsigned char *buf) {
 }
 
 
+static set_reg_timeout(void) {
+
+	struct timeval tv = {5,0};
+	struct event *timeout;
+	
+	timeout = event_new(base, -1, NULL, register_handsets_stop, NULL);
+	event_add(timeout, &tv);
+}
+
+
 static registration(struct bufferevent *bev, packet *p) {
 
 	switch (p->arg) {
@@ -222,6 +239,7 @@ static registration(struct bufferevent *bev, packet *p) {
 	case ENABLED:
 		printf("enable registration\n");
 		register_handsets_start();
+		set_reg_timeout();
 		send_client(bev, OK);
 		break;
 
@@ -294,7 +312,6 @@ void dect_read(struct bufferevent *bev, void *ctx) {
 	struct evbuffer *input = bufferevent_get_input(bev);
 	struct packet_header hdr;
 
-	printf("dect_read\n");
 	/* Do we have a packet header? */
 	if (!pkt->size && (evbuffer_get_length(input) >= sizeof(hdr))) {
 		
@@ -303,8 +320,6 @@ void dect_read(struct bufferevent *bev, void *ctx) {
 		pkt->size = hdr.size;
 		pkt->type = hdr.type;
 
-		printf("pkt->size: %d\n", pkt->size);
-		printf("pkt->type: %d\n", pkt->type);
 		pkt->data = (uint8_t *)malloc(pkt->size);
 	}
 
@@ -379,7 +394,6 @@ void run(void) {
 
 	evutil_socket_t listener;
 	struct sockaddr_in sin, proxy;
-	struct event_base *base;
 	struct event *listener_event;
 	struct dect_packet *dect_pkt;
 

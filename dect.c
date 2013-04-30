@@ -125,9 +125,8 @@ int main(int argc, char *argv[]) {
 	}
 
 	if (flags & ACTIVATE_REG) {
+		printf("activate registration\n");
 		set_registration(s, ENABLED);
-
-		set_registration(s, DISABLED);
 	}
 
 	if (flags & DELETE_HSET) {
