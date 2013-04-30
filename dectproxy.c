@@ -12,6 +12,8 @@
 #include <signal.h>
 #include <unistd.h>
 
+#include "dectd.h"
+
 
 #define MAX_MAIL_SIZE 4098
 #define MAX_LISTENERS 10
@@ -121,9 +123,13 @@ int main(void)
 					/* If data is read from /dev/dect, send it to all clients */
 					if (i != l && i != d) {
 						/* Send packet length as first two bytes */
-						hdr[0] = (uint8_t)((ret & 0xff00) >> 8); // MSB
-						hdr[1] = (uint8_t)(ret & 0x00ff);        // LSB
-						if (send(i, hdr, 2, 0) == -1)
+						struct packet_header hdr;
+						hdr.size = (uint32_t)ret;
+						hdr.type = DECT_PACKET;
+						
+						/* hdr[0] = (uint8_t)((ret & 0xff00) >> 8); // MSB */
+						/* hdr[1] = (uint8_t)(ret & 0x00ff);        // LSB */
+						if (send(i, &hdr, sizeof(hdr), 0) == -1)
 							perror("send");
 
 						/* TODO, should sendall here */

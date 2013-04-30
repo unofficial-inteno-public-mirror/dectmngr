@@ -27,6 +27,7 @@ enum packet_type {
 	PING_HSET,
 	DELETE_HSET,
 	RESPONSE,
+	DECT_PACKET,
 };
 
 enum packet_resp_type {
@@ -40,5 +41,18 @@ typedef struct packet {
 	uint8_t type;
 	uint8_t arg;
 } packet;
+
+
+struct packet_header {
+	uint32_t size;
+	uint8_t type;
+};
+
+struct data_packet {
+	uint32_t size;
+	uint8_t type;
+	uint8_t *data;
+};
+
 
 #endif /* DECT_H */

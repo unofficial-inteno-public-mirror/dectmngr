@@ -26,10 +26,6 @@ struct bufferevent *dect;
 
 
 
-struct dect_packet {
-	size_t size;
-};
-
 
 void exit_failure(const char *format, ...)
 {
@@ -292,37 +288,42 @@ void readcb(struct bufferevent *bev, void *ctx) {
 
 void dect_read(struct bufferevent *bev, void *ctx) {
 	
-	char buf[1024];
+	uint8_t *buf;
 	int n, i, read;
-	struct dect_packet *pkt = ctx;
-	
+	struct data_packet *pkt = ctx;
 	struct evbuffer *input = bufferevent_get_input(bev);
+	struct packet_header hdr;
+
 	printf("dect_read\n");
 	/* Do we have a packet header? */
-	if (!pkt->size && evbuffer_get_length(input) >= 2) {
+	if (!pkt->size && (evbuffer_get_length(input) >= sizeof(hdr))) {
 		
-		n = evbuffer_remove(input, buf, 2);
+		n = evbuffer_remove(input, &hdr, sizeof(hdr));
 
-		/* use uint and cast instead */
-		pkt->size = buf[0] << 8; // MSB
-		pkt->size |= buf[1];     // LSB
-		
+		pkt->size = hdr.size;
+		pkt->type = hdr.type;
+
 		printf("pkt->size: %d\n", pkt->size);
+		printf("pkt->type: %d\n", pkt->type);
+		pkt->data = (uint8_t *)malloc(pkt->size);
 	}
-
-	printf("evbuffer_get_length: %d\n", evbuffer_get_length(input));
 
 	/* Is there an entire packet in the buffer? */
 	if (evbuffer_get_length(input) >= pkt->size) {
-		n = evbuffer_remove(input, buf, pkt->size);
 
+		n = evbuffer_remove(input, pkt->data, pkt->size);
+		
+		/* Dump the packet. */
+		printf("[RDECT][%04d] - ", pkt->size);
 		for (i=0 ; i<n ; i++)
-			printf("%02x ",buf[i]);
+			printf("%02x ", pkt->data[i]);
 		printf("\n");
-
-		printf("n: %d\n", n);
-		handle_dect_packet(buf);
-		pkt->size = 0;
+		
+		handle_dect_packet(pkt->data);
+		
+		/* Reset packet struct */
+		free(pkt->data);
+		memset(pkt, 0, sizeof(pkt));
 	}
 
 }
@@ -394,8 +395,7 @@ void run(void) {
 	proxy.sin_port = htons(7777);
 
 	/* Setup dect bufferevent */
-	dect_pkt = malloc(sizeof(struct dect_packet));
-	dect_pkt->size = 0;
+	dect_pkt = calloc(sizeof(struct data_packet), 1);
 	
 	dect = bufferevent_socket_new(base, -1, BEV_OPT_CLOSE_ON_FREE);
 	bufferevent_setcb(dect, dect_read, NULL, dect_event, dect_pkt);
