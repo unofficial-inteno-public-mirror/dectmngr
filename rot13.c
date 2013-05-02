@@ -24,8 +24,13 @@
 /* Globals */
 struct bufferevent *dect;
 struct event_base *base;
+struct info *dect_info;
 
 
+struct info {
+	const char *name;
+	struct packet *pkt;
+};
 
 
 void exit_failure(const char *format, ...)
@@ -281,98 +286,50 @@ void handle_client_packet(struct bufferevent *bev, packet_t *p) {
 }
 
 
-void readcb(struct bufferevent *bev, void *ctx) {
-	
-	char buf[1024];
-	int n;
-	struct evbuffer *input = bufferevent_get_input(bev);
-
-	printf("readcb\n");
-
-	while ((n = evbuffer_remove(input, buf, sizeof(buf))) > 0) {
-		handle_client_packet(bev, (packet_t *)buf);
-	}
-}
-
-
-
-void dect_read(struct bufferevent *bev, void *ctx) {
-	
-	uint8_t *buf;
-	int n, i, read;
-	packet_t *pkt = ctx;
-	struct evbuffer *input = bufferevent_get_input(bev);
-	
-	printf("dect_read\n");
-	/* Do we have a packet header? */
-	if (!pkt->size && (evbuffer_get_length(input) >= sizeof(packet_header_t))) {
-		
-		n = evbuffer_remove(input, pkt, sizeof(packet_header_t));
-
-		printf("pkt->size: %d\n", pkt->size);
-
-		if (pkt->size > sizeof(packet_t)) {
-			printf("need to allocate more space for packet\n");
-			if((pkt = realloc(pkt, pkt->size)) == NULL)
-				exit_failure("realloc");
-		}
-	}
-
-	/* Is there an entire packet in the buffer? */
-	if (evbuffer_get_length(input) >= pkt->size) {
-
-		n = evbuffer_remove(input, pkt->data, pkt->size - sizeof(packet_header_t));
-		handle_dect_packet(pkt->data);
-		
-		/* Reset packet struct */
-		free(pkt);
-		pkt = calloc(sizeof(packet_t), 1);
-	}
-
-}
-
 
 void packet_read(struct bufferevent *bev, void *ctx) {
 	
 	uint8_t *buf;
 	int n, i, read;
-	packet_t *pkt = ctx;
+	struct info *info = ctx;
 	struct evbuffer *input = bufferevent_get_input(bev);
 	
-	printf("packet read\n");
-	/* Do we have a packet header? */
-	if (!pkt->size && (evbuffer_get_length(input) >= sizeof(packet_header_t))) {
-		
-		n = evbuffer_remove(input, pkt, sizeof(packet_header_t));
+	printf("packet read, %s\n", info->name);
 
-		printf("pkt->size: %d\n", pkt->size);
+	/* Do we have a packet header? */
+	if (!info->pkt->size && (evbuffer_get_length(input) >= sizeof(packet_header_t))) {
 		
-		if (pkt->size > sizeof(packet_t)) {
+		n = evbuffer_remove(input, info->pkt, sizeof(packet_header_t));
+
+		if (info->pkt->size > sizeof(packet_t)) {
 			printf("need to allocate more space for packet\n");
-			if((pkt = realloc(pkt, pkt->size)) == NULL)
+			if((info->pkt = realloc(info->pkt, info->pkt->size)) == NULL)
 				exit_failure("realloc");
+
 		}
 		
 	}
 
-	/* Is there an entire packet in the buffer? */
-	if (evbuffer_get_length(input) >= pkt->size - sizeof(packet_header_t)) {
 
-		n = evbuffer_remove(input, pkt->data, pkt->size - sizeof(packet_header_t));
-		printf("pkt->type: %d\n", pkt->type);
-		switch (pkt->type) {
+	/* Is there an entire packet in the buffer? */
+	if (evbuffer_get_length(input) >= (info->pkt->size - sizeof(packet_header_t))) {
+
+		n = evbuffer_remove(input, info->pkt->data, info->pkt->size - sizeof(packet_header_t));
+
+		switch (info->pkt->type) {
 		case DECT_PACKET:
-			handle_dect_packet(pkt->data);
+			handle_dect_packet(info->pkt->data);
 			break;
 		default:
-			handle_client_packet(bev, pkt);
+			handle_client_packet(bev, info->pkt);
 			break;
 		}
 
-
+		
 		/* Reset packet struct */
-		free(pkt);
-		pkt = calloc(sizeof(packet_t), 1);
+		free(info->pkt);
+		info->pkt = calloc(sizeof(packet_t), 1);
+
 	}
 }
 
@@ -397,7 +354,13 @@ void do_accept(evutil_socket_t listener, short event, void *arg) {
 	struct sockaddr_storage ss;
 	socklen_t slen = sizeof(ss);
 	int fd = accept(listener, (struct sockaddr*)&ss, &slen);
-	packet_t *pkt = calloc(sizeof(packet_t), 1);
+
+
+	/* Setup client bufferevent */
+	struct info *client_info = calloc(sizeof(struct info), 1);
+	client_info->name = "client";
+	client_info->pkt = calloc(sizeof(struct packet), 1);
+
 
 	printf("accepted client connection\n");
 	/* Setup dect bufferevent */
@@ -411,7 +374,7 @@ void do_accept(evutil_socket_t listener, short event, void *arg) {
 		struct bufferevent *bev;
 		evutil_make_socket_nonblocking(fd);
 		bev = bufferevent_socket_new(base, fd, BEV_OPT_CLOSE_ON_FREE);
-		bufferevent_setcb(bev, packet_read, NULL, errorcb, pkt);
+		bufferevent_setcb(bev, packet_read, NULL, errorcb, client_info);
 		bufferevent_setwatermark(bev, EV_READ, 0, MAX_LINE);
 		bufferevent_enable(bev, EV_READ | EV_WRITE);
 	}
@@ -432,8 +395,8 @@ struct bufferevent *create_connection(int address, int port) {
 
 	struct bufferevent *be;
 	struct sockaddr_in proxy;
-	struct packet_t *pkt;
-
+	
+	
 
 	/* Open connection to dectproxy. */
 	memset(&proxy, 0, sizeof(proxy));
@@ -442,14 +405,15 @@ struct bufferevent *create_connection(int address, int port) {
 	proxy.sin_port = htons(port);
 
 	/* Setup dect bufferevent */
-	pkt = calloc(sizeof(packet_t), 1);
-	
+	dect_info = calloc(sizeof(struct info), 1);
+	dect_info->name = "dect";
+	dect_info->pkt = calloc(sizeof(struct packet), 1);
+
 	be = bufferevent_socket_new(base, -1, BEV_OPT_CLOSE_ON_FREE);
-	bufferevent_setcb(be, packet_read, NULL, dect_event, pkt);
+	bufferevent_setcb(be, packet_read, NULL, dect_event, dect_info);
 
 	if (bufferevent_socket_connect(be, (struct sockaddr *)&proxy, sizeof(proxy)) < 0) {
 		bufferevent_free(be);
-		printf("could not connect\n");
 		return NULL;
 	}
 

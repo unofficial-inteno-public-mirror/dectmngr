@@ -6,7 +6,7 @@
 
 #define MAX_MAIL_SIZE 4098
 #define MAX_LISTENERS 10
-#define PKT_DATA_SIZE 1
+#define PKT_DATA_SIZE 100
 
 
 #define MAX(a,b) ((a) > (b) ? (a) : (b))
@@ -50,7 +50,7 @@ typedef struct packet {
 
 typedef struct client_packet {
 	PACKET_HEADER
-	uint8_t data[100];
+	uint8_t data;
 } client_packet;
 
 
