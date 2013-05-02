@@ -6,7 +6,7 @@
 
 #define MAX_MAIL_SIZE 4098
 #define MAX_LISTENERS 10
-#define PKT_SIZE 100
+#define PKT_DATA_SIZE 1
 
 
 #define MAX(a,b) ((a) > (b) ? (a) : (b))
@@ -40,17 +40,17 @@ enum packet_resp_type {
 
 #define PACKET_HEADER \
 	uint32_t size; \
-	uint8_t type;
+	uint32_t type;
 	
 
 typedef struct packet {
 	PACKET_HEADER
-	uint8_t *data;
+	uint8_t data[PKT_DATA_SIZE];
 } packet_t;
 
 typedef struct client_packet {
 	PACKET_HEADER
-	uint8_t arg;
+	uint8_t data[100];
 } client_packet;
 
 

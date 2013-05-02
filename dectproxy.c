@@ -122,9 +122,9 @@ int main(void)
 				for (i = 0; i <= fdmax; i++) {
 					/* If data is read from /dev/dect, send it to all clients */
 					if (i != l && i != d) {
-						/* Send packet length as first two bytes */
+
 						struct packet_header hdr;
-						hdr.size = (uint32_t)ret;
+						hdr.size = (uint32_t)ret + sizeof(hdr);
 						hdr.type = DECT_PACKET;
 						
 						/* hdr[0] = (uint8_t)((ret & 0xff00) >> 8); // MSB */

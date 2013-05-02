@@ -12,6 +12,13 @@
 #include "dectd.h"
 
 
+#define ACTIVATE_REG 1 << 0
+#define DELETE_HSET  1 << 1
+#define PING_HSET    1 << 2
+#define GET_STATUS   1 << 3
+
+
+
 void exit_failure(const char *format, ...)
 {
 #define BUF_SIZE 500
@@ -97,15 +104,12 @@ int establish_connection(void) {
 	return s;
 }
 
-#define ACTIVATE_REG 1 << 0
-#define DELETE_HSET  1 << 1
-#define PING_HSET    1 << 2
-#define GET_STATUS   1 << 3
 
 
 int main(int argc, char *argv[]) {
 
-	int s, c, flags;
+	int s, c;
+	int flags = 0;
 
 	s = establish_connection();
 
@@ -133,17 +137,17 @@ int main(int argc, char *argv[]) {
 		set_registration(s, ENABLED);
 	}
 
-	/* if (flags & DELETE_HSET) { */
-	/* 	printf("delete hset\n"); */
-	/* } */
+	if (flags & DELETE_HSET) {
+		printf("delete hset\n");
+	}
 
-	/* if (flags & PING_HSET) { */
-	/* 	printf("ping hset\n"); */
-	/* } */
+	if (flags & PING_HSET) {
+		printf("ping hset\n");
+	}
 
-	/* if (flags & GET_STATUS) { */
-	/* 	printf("get status\n"); */
-	/* } */
+	if (flags & GET_STATUS) {
+		printf("get status\n");
+	}
 	
 	return 0;
 }

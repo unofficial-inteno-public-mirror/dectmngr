@@ -56,9 +56,9 @@ static send_client(struct bufferevent *bev, uint8_t status) {
 
 	printf("send_client\n");
 	bufferevent_write(bev, p, sizeof(packet_t));
-	
-	free(p);
 
+	free(p);
+	printf("send_client 1\n");
 }
 
 
@@ -240,8 +240,7 @@ static registration(struct bufferevent *bev, packet_t *p) {
 	register_handsets_start();
 	timeout = event_new(base, -1, EV_TIMEOUT, (void *)register_handsets_stop, NULL);
 	event_add(timeout, &tv);
-	
-	send_client(bev, OK);
+	//send_client(bev, OK);
 }
 
 
@@ -303,7 +302,8 @@ void dect_read(struct bufferevent *bev, void *ctx) {
 	int n, i, read;
 	packet_t *pkt = ctx;
 	struct evbuffer *input = bufferevent_get_input(bev);
-
+	
+	printf("dect_read\n");
 	/* Do we have a packet header? */
 	if (!pkt->size && (evbuffer_get_length(input) >= sizeof(packet_header_t))) {
 		
@@ -311,55 +311,69 @@ void dect_read(struct bufferevent *bev, void *ctx) {
 
 		printf("pkt->size: %d\n", pkt->size);
 
-		pkt->data = (uint8_t *)malloc(pkt->size);
+		if (pkt->size > sizeof(packet_t)) {
+			printf("need to allocate more space for packet\n");
+			if((pkt = realloc(pkt, pkt->size)) == NULL)
+				exit_failure("realloc");
+		}
 	}
 
 	/* Is there an entire packet in the buffer? */
 	if (evbuffer_get_length(input) >= pkt->size) {
 
-		n = evbuffer_remove(input, pkt->data, pkt->size);
-		
+		n = evbuffer_remove(input, pkt->data, pkt->size - sizeof(packet_header_t));
 		handle_dect_packet(pkt->data);
 		
 		/* Reset packet struct */
-		free(pkt->data);
-		memset(pkt, 0, sizeof(pkt));
+		free(pkt);
+		pkt = calloc(sizeof(packet_t), 1);
 	}
 
 }
 
 
-void client_read(struct bufferevent *bev, void *ctx) {
+void packet_read(struct bufferevent *bev, void *ctx) {
 	
 	uint8_t *buf;
 	int n, i, read;
 	packet_t *pkt = ctx;
 	struct evbuffer *input = bufferevent_get_input(bev);
-
-	printf("client read\n");
+	
+	printf("packet read\n");
 	/* Do we have a packet header? */
 	if (!pkt->size && (evbuffer_get_length(input) >= sizeof(packet_header_t))) {
 		
 		n = evbuffer_remove(input, pkt, sizeof(packet_header_t));
 
 		printf("pkt->size: %d\n", pkt->size);
-
-		pkt->data = (uint8_t *)malloc(pkt->size);
+		
+		if (pkt->size > sizeof(packet_t)) {
+			printf("need to allocate more space for packet\n");
+			if((pkt = realloc(pkt, pkt->size)) == NULL)
+				exit_failure("realloc");
+		}
+		
 	}
-	printf("client read 1\n");
+
 	/* Is there an entire packet in the buffer? */
 	if (evbuffer_get_length(input) >= pkt->size - sizeof(packet_header_t)) {
-		printf("client read 1.1\n");
-		n = evbuffer_remove(input, pkt->data, pkt->size);
-		
-		handle_client_packet(bev, pkt);
-		
-		/* Reset packet struct */
-		free(pkt->data);
-		memset(pkt, 0, sizeof(pkt));
-	}
-	printf("client read 2\n");
 
+		n = evbuffer_remove(input, pkt->data, pkt->size - sizeof(packet_header_t));
+		printf("pkt->type: %d\n", pkt->type);
+		switch (pkt->type) {
+		case DECT_PACKET:
+			handle_dect_packet(pkt->data);
+			break;
+		default:
+			handle_client_packet(bev, pkt);
+			break;
+		}
+
+
+		/* Reset packet struct */
+		free(pkt);
+		pkt = calloc(sizeof(packet_t), 1);
+	}
 }
 
 
@@ -397,7 +411,7 @@ void do_accept(evutil_socket_t listener, short event, void *arg) {
 		struct bufferevent *bev;
 		evutil_make_socket_nonblocking(fd);
 		bev = bufferevent_socket_new(base, fd, BEV_OPT_CLOSE_ON_FREE);
-		bufferevent_setcb(bev, client_read, NULL, errorcb, pkt);
+		bufferevent_setcb(bev, packet_read, NULL, errorcb, pkt);
 		bufferevent_setwatermark(bev, EV_READ, 0, MAX_LINE);
 		bufferevent_enable(bev, EV_READ | EV_WRITE);
 	}
@@ -414,37 +428,52 @@ void dect_event(struct bufferevent *bev, short events, void *ptr) {
 }
 
 
-void run(void) {
+struct bufferevent *create_connection(int address, int port) {
 
-	evutil_socket_t listener;
-	struct sockaddr_in sin, proxy;
-	struct event *listener_event;
-	struct dect_packet *dect_pkt;
-
-	base = event_base_new();
-	if (!base)
-		return;
+	struct bufferevent *be;
+	struct sockaddr_in proxy;
+	struct packet_t *pkt;
 
 
 	/* Open connection to dectproxy. */
 	memset(&proxy, 0, sizeof(proxy));
 	proxy.sin_family = AF_INET;
-	proxy.sin_addr.s_addr = INADDR_ANY;
-	proxy.sin_port = htons(7777);
+	proxy.sin_addr.s_addr = htons(address);
+	proxy.sin_port = htons(port);
 
 	/* Setup dect bufferevent */
-	dect_pkt = calloc(sizeof(packet_t), 1);
+	pkt = calloc(sizeof(packet_t), 1);
 	
-	dect = bufferevent_socket_new(base, -1, BEV_OPT_CLOSE_ON_FREE);
-	bufferevent_setcb(dect, dect_read, NULL, dect_event, dect_pkt);
+	be = bufferevent_socket_new(base, -1, BEV_OPT_CLOSE_ON_FREE);
+	bufferevent_setcb(be, packet_read, NULL, dect_event, pkt);
 
-	if (bufferevent_socket_connect(dect, (struct sockaddr *)&proxy, sizeof(proxy)) < 0) {
-		bufferevent_free(dect);
+	if (bufferevent_socket_connect(be, (struct sockaddr *)&proxy, sizeof(proxy)) < 0) {
+		bufferevent_free(be);
 		printf("could not connect\n");
-		return -1;
+		return NULL;
 	}
 
-	bufferevent_enable(dect, EV_READ | EV_WRITE);
+	bufferevent_enable(be, EV_READ | EV_WRITE);
+
+	return be;
+}
+
+
+void run(void) {
+
+	evutil_socket_t listener;
+	struct sockaddr_in sin;
+	struct event *listener_event;
+
+
+	if ((base = event_base_new()) == NULL)
+		exit_failure("event_base_new");
+
+
+	/* Connect to dectproxy */
+	if ((dect = create_connection(INADDR_ANY, 7777)) == NULL)
+		exit_failure("create_connection");
+
 
 	/* Open listening socket. */
 	sin.sin_family = AF_INET;
