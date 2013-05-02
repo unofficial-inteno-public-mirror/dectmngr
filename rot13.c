@@ -25,7 +25,7 @@
 struct bufferevent *dect;
 struct event_base *base;
 struct info *dect_info;
-
+struct status_packet status;
 
 struct info {
 	const char *name;
@@ -136,6 +136,8 @@ int register_handsets_stop(void)
   *(tempPtr+4) = 0; //disable registration
 
   write_frame(tempPtr);
+
+  status.reg_mode = DISABLED;
 
   return 0;
 }
@@ -250,8 +252,8 @@ static registration(struct bufferevent *bev, packet_t *p) {
 
 
 static get_status(struct bufferevent *bev) {
-
 	
+	bufferevent_write(bev, &status, sizeof(status));
 }
 
 
@@ -266,6 +268,7 @@ void handle_client_packet(struct bufferevent *bev, packet_t *p) {
 
 	case REGISTRATION:
 		printf("REGISTRATION\n");
+		status.reg_mode = ENABLED;
 		registration(bev, p);
 		break;
 
@@ -422,6 +425,18 @@ struct bufferevent *create_connection(int address, int port) {
 	return be;
 }
 
+static void init_status(void) {
+
+	memset(&status, 0, sizeof(status));
+	status.size = sizeof(status);
+	status.type = RESPONSE;
+	status.reg_mode = DISABLED;
+
+	status.handset[1].registered = TRUE;
+	status.handset[2].registered = TRUE;
+	status.handset[2].present = TRUE;
+}
+
 
 void run(void) {
 
@@ -429,6 +444,8 @@ void run(void) {
 	struct sockaddr_in sin;
 	struct event *listener_event;
 
+	/* Init status */
+	init_status();
 
 	if ((base = event_base_new()) == NULL)
 		exit_failure("event_base_new");

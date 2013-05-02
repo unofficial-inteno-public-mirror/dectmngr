@@ -37,22 +37,56 @@ void exit_failure(const char *format, ...)
 
 
 
-/* static handle_response(packet_t *p) { */
+static handle_response(packet_t *p) {
 
-/* 	switch (p->arg) { */
+	switch (p->type) {
 		
-/* 	case OK: */
-/* 		printf("OK\n"); */
-/* 		break; */
+	case RESPONSE:
+		printf("OK\n");
+		break;
 
-/* 	case ERROR: */
-/* 		printf("ERROR\n"); */
-/* 		break; */
-/* 	} */
-		
+	case ERROR:
+		printf("ERROR\n");
+		break;
+	default:
+		printf("unknown packet\n");
+		break;
+	}
+}
 
-/* } */
 
+static void status_packet(struct status_packet *p) {
+
+	int i;
+
+	for (i = 0; i < MAX_NR_HSETS; i++) {
+		printf("hset: %d", i);
+
+		if (p->handset[i].registered == TRUE) {
+			printf("\tregistered");
+
+			if (p->handset[i].present == TRUE)
+				printf("\tpresent");
+			else 
+				printf("\tnot present");
+
+		} else {
+			printf("\tnot registered");
+		}
+		printf("\n");
+
+	}
+	printf("\n");
+	
+	if (p->reg_mode == ENABLED)
+		printf("reg_state: ENABLED\n");
+
+	if (p->reg_mode == DISABLED)
+		printf("reg_state: DISABLED\n");
+
+	
+
+}
 
 static send_packet(uint8_t s, uint8_t type) {
 
@@ -77,6 +111,22 @@ static send_packet(uint8_t s, uint8_t type) {
 	free(p);
 }
 
+
+
+static void *get_reply(uint8_t s) {
+	
+	uint8_t *buf;
+	int r;
+
+	if ((buf = (client_packet *)malloc(sizeof(struct status_packet))) == NULL)
+		exit_failure("malloc");
+
+		       
+	if (r = recv(s, buf, sizeof(struct status_packet), 0) == -1)
+		exit_failure("recv");
+	
+	return buf;
+}
 
 
 int establish_connection(void) {
@@ -147,6 +197,8 @@ int main(int argc, char *argv[]) {
 	if (flags & F_GET_STATUS) {
 		printf("get status\n");
 		send_packet(s, GET_STATUS);
+		struct status_packet *p = get_reply(s);
+		status_packet(p);
 	}
 	
 	return 0;

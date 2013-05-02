@@ -7,7 +7,7 @@
 #define MAX_MAIL_SIZE 4098
 #define MAX_LISTENERS 10
 #define PKT_DATA_SIZE 100
-
+#define MAX_NR_HSETS 6
 
 #define MAX(a,b) ((a) > (b) ? (a) : (b))
 
@@ -18,6 +18,11 @@ typedef struct dect_state {
 enum reg_state {
 	ENABLED,
 	DISABLED,
+};
+
+enum boolean {
+	FALSE,
+	TRUE,
 };
 
 
@@ -52,6 +57,23 @@ typedef struct client_packet {
 	PACKET_HEADER
 	uint8_t data;
 } client_packet;
+
+
+struct hset {
+	uint8_t registered;
+	uint8_t present;
+	uint8_t rfpi[5];
+};
+
+
+
+
+struct status_packet {
+	PACKET_HEADER
+	uint8_t reg_mode;
+	struct hset handset[MAX_NR_HSETS];
+};
+
 
 
 
