@@ -62,7 +62,7 @@ typedef struct client_packet {
 struct hset {
 	uint8_t registered;
 	uint8_t present;
-	uint8_t rfpi[5];
+	uint8_t ipui[5];
 };
 
 

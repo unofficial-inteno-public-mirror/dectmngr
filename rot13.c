@@ -67,6 +67,32 @@ static send_client(struct bufferevent *bev, uint8_t status) {
 }
 
 
+static int list_handsets(void) {
+  
+	unsigned char *tempPtr = NULL;
+
+	printf("list_handsets\n");
+
+        printf("OUTPUT: API_FP_MM_GET_REGISTRATION_COUNT_REQ\n");
+
+	tempPtr = (unsigned char*) malloc(4);
+	if (tempPtr == NULL) {
+		printf("No more memory!!!");
+		return;
+	}
+
+	*(tempPtr+0) = 0; // Length MSB
+	*(tempPtr+1) = 2; // Length LSB
+	*(tempPtr+2) = (unsigned char) ((API_FP_MM_GET_REGISTRATION_COUNT_REQ&0xff00)>>8); // Primitive MSB
+	*(tempPtr+3) = (unsigned char) (API_FP_MM_GET_REGISTRATION_COUNT_REQ&0x00ff);      // Primitive LSB
+
+	write_frame(tempPtr);
+
+	return 0;
+}
+
+
+
 int register_handsets_start(void)
 {
   
@@ -160,6 +186,93 @@ void reg_timer(void) {
 }
 
 
+static void get_handset_ipui(int handset) {  
+
+	unsigned char *tempPtr = NULL;  
+	printf("get_handset_ipui: %d\n", handset);
+
+	tempPtr = (unsigned char*) malloc(4);
+	if (tempPtr == NULL) {
+		printf("No more memory!!!");
+		return;
+	}
+
+
+	*(tempPtr+0) = 0; // Length MSB
+	*(tempPtr+1) = 3; // Length LSB
+	*(tempPtr+2) = (unsigned char) ((API_FP_MM_GET_HANDSET_IPUI_REQ&0xff00)>>8); // Primitive MSB
+	*(tempPtr+3) = (unsigned char) (API_FP_MM_GET_HANDSET_IPUI_REQ&0x00ff);      // Primitive LSB
+	*(tempPtr+4) = handset;
+
+	write_frame(tempPtr);
+
+
+}
+
+
+
+void registration_count_cfm(unsigned char *mail) {  
+
+	int i, handset;
+
+         printf("INPUT: API_FP_MM_GET_REGISTRATION_COUNT_CFM\n");
+         if ( ((ApiFpMmGetRegistrationCountCfmType*) mail)->Status == RSS_SUCCESS )
+         {
+            /* Pass the information to the endpoint (controller).
+            */
+		 /* DECT_REG_CNT regCnt; */
+
+		 printf("Max Number of Handset allowed: %d\n", ((ApiFpMmGetRegistrationCountCfmType*) mail)->MaxNoHandsets);
+		 /* regCnt.maxHset = ((ApiFpMmGetRegistrationCountCfmType*) mail)->MaxNoHandsets; */
+		 /* regCnt.curHset = ((ApiFpMmGetRegistrationCountCfmType*) mail)->HandsetIdLength; */
+            
+		 printf("Following Handsets are registered:\n");
+		 for ( i = 0 ; i < (((ApiFpMmGetRegistrationCountCfmType*) mail)->HandsetIdLength ) ; i++ )
+			 {
+				 /* regCnt.curHsetMap[ i ] = ((ApiFpMmGetRegistrationCountCfmType*) mail)->HandsetId[i]; */
+				 handset = ((ApiFpMmGetRegistrationCountCfmType*) mail)->HandsetId[i];
+				 //dectUtilSetHandsetPresent (handset, TRUE);
+				 printf("Handset (%d) registered\n", handset );
+				 get_handset_ipui(handset);
+
+				 status.handset[i].registered = TRUE;
+				 
+			 }
+
+	 }
+	 
+	 
+	 //exit(0);
+}
+
+
+
+static void handset_ipui_cfm(unsigned char *mail) {  
+
+	int handset, i;
+
+         printf("INPUT: API_FP_MM_GET_HANDSET_IPUI_CFM\n");
+
+         handset = ((ApiFpMmGetHandsetIpuiCfmType *) mail)->HandsetId;
+
+         if ( ((ApiFpMmGetHandsetIpuiCfmType*) mail)->Status == RSS_SUCCESS )
+         {
+            printf("INPUT: HANDSET %d, IPUI %x %x %x %x %x\n",
+                     handset,
+                     ((ApiFpMmGetHandsetIpuiCfmType *) mail)->IPUI[0],
+                     ((ApiFpMmGetHandsetIpuiCfmType *) mail)->IPUI[1],
+                     ((ApiFpMmGetHandsetIpuiCfmType *) mail)->IPUI[2],
+                     ((ApiFpMmGetHandsetIpuiCfmType *) mail)->IPUI[3],
+                     ((ApiFpMmGetHandsetIpuiCfmType *) mail)->IPUI[4] );
+	 }
+
+	 for (i = 0; i < 5; i++)
+		 status.handset[handset - 1].ipui[i] = ((ApiFpMmGetHandsetIpuiCfmType *) mail)->IPUI[i];
+	 
+}
+
+
+
 void handle_dect_packet(unsigned char *buf) {
 
   RosPrimitiveType primitive;
@@ -208,10 +321,12 @@ void handle_dect_packet(unsigned char *buf) {
 
   case API_FP_MM_GET_HANDSET_IPUI_CFM:
     printf("API_FP_MM_GET_HANDSET_IPUI_CFM\n");
+    handset_ipui_cfm(buf);
     break;
 
   case API_FP_MM_GET_REGISTRATION_COUNT_CFM:
     printf("API_FP_MM_GET_REGISTRATION_COUNT_CFM\n");
+    registration_count_cfm(buf);
     break;
 
   case API_FP_MM_REGISTRATION_COMPLETE_IND:
@@ -220,6 +335,7 @@ void handle_dect_packet(unsigned char *buf) {
 
   case API_FP_LINUX_INIT_CFM:
     printf("API_FP_LINUX_INIT_CFM\n");
+    list_handsets();
     break;
 
   case API_FP_GET_EEPROM_CFM:
@@ -432,8 +548,6 @@ static void init_status(void) {
 	status.type = RESPONSE;
 	status.reg_mode = DISABLED;
 
-	status.handset[1].registered = TRUE;
-	status.handset[2].registered = TRUE;
 	status.handset[2].present = TRUE;
 }
 

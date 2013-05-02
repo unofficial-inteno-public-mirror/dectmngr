@@ -57,13 +57,16 @@ static handle_response(packet_t *p) {
 
 static void status_packet(struct status_packet *p) {
 
-	int i;
+	int i, j;
 
 	for (i = 0; i < MAX_NR_HSETS; i++) {
-		printf("hset: %d", i);
+		printf("hset: %d", i );
 
 		if (p->handset[i].registered == TRUE) {
-			printf("\tregistered");
+			printf("\tregistered\t");
+
+			for (j = 0; j < 5; j++)
+				printf("%2.2x ", p->handset[i].ipui[j]);
 
 			if (p->handset[i].present == TRUE)
 				printf("\tpresent");
