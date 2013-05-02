@@ -281,7 +281,7 @@ void handle_client_packet(struct bufferevent *bev, packet_t *p) {
 		printf("unknown packet\n");
 		break;
 
-	}	  
+	}
 
 }
 

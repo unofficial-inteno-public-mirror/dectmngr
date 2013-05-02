@@ -12,10 +12,10 @@
 #include "dectd.h"
 
 
-#define ACTIVATE_REG 1 << 0
-#define DELETE_HSET  1 << 1
-#define PING_HSET    1 << 2
-#define GET_STATUS   1 << 3
+#define F_ACTIVATE_REG 1 << 0
+#define F_DELETE_HSET  1 << 1
+#define F_PING_HSET    1 << 2
+#define F_GET_STATUS   1 << 3
 
 
 
@@ -54,7 +54,7 @@ void exit_failure(const char *format, ...)
 /* } */
 
 
-static set_registration(uint8_t s, uint8_t mode) {
+static send_packet(uint8_t s, uint8_t type) {
 
 	client_packet *p;
 	char nl = '\n';
@@ -64,14 +64,11 @@ static set_registration(uint8_t s, uint8_t mode) {
 		exit_failure("malloc");
 
 	p->size = sizeof(client_packet);
-	p->type = REGISTRATION;
-	
-	printf("p->size: %d\n", p->size);
+	p->type = type;
 	
 	if ((sent = send(s, p, p->size, 0)) == -1)
 		exit_failure("send");
 
-	printf("sent: %d\n", sent);
 	/* if (recv(s, p, sizeof(packet), 0) == -1) */
 	/* 	exit_failure("recv"); */
 
@@ -117,36 +114,39 @@ int main(int argc, char *argv[]) {
 	while ((c = getopt (argc, argv, "rdps")) != -1) {
 		switch (c) {
 		case 'r':
-			flags |= ACTIVATE_REG;
+			flags |= F_ACTIVATE_REG;
 			break;
 		case 'd':
-			flags |= DELETE_HSET;
+			flags |= F_DELETE_HSET;
 			break;
 		case 'p':
-			flags |= PING_HSET;
+			flags |= F_PING_HSET;
 			break;
 		case 's':
-			flags |= GET_STATUS;
+			flags |= F_GET_STATUS;
 			break;
 	
 		}
 	}
 
-	if (flags & ACTIVATE_REG) {
+	if (flags & F_ACTIVATE_REG) {
 		printf("activate registration\n");
-		set_registration(s, ENABLED);
+		send_packet(s, REGISTRATION);
 	}
 
-	if (flags & DELETE_HSET) {
+	if (flags & F_DELETE_HSET) {
 		printf("delete hset\n");
+		send_packet(s, DELETE_HSET);
 	}
 
-	if (flags & PING_HSET) {
+	if (flags & F_PING_HSET) {
 		printf("ping hset\n");
+		send_packet(s, PING_HSET);
 	}
 
-	if (flags & GET_STATUS) {
+	if (flags & F_GET_STATUS) {
 		printf("get status\n");
+		send_packet(s, GET_STATUS);
 	}
 	
 	return 0;
