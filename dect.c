@@ -60,7 +60,7 @@ static void status_packet(struct status_packet *p) {
 	int i, j;
 
 	for (i = 0; i < MAX_NR_HSETS; i++) {
-		printf("hset: %d", i );
+		printf("hset: %d", i + 1);
 
 		if (p->handset[i].registered == TRUE) {
 			printf("\tregistered\t");
@@ -91,7 +91,7 @@ static void status_packet(struct status_packet *p) {
 
 }
 
-static send_packet(uint8_t s, uint8_t type) {
+static send_packet(uint8_t s, uint8_t type, uint8_t arg) {
 
 	client_packet *p;
 	char nl = '\n';
@@ -102,6 +102,7 @@ static send_packet(uint8_t s, uint8_t type) {
 
 	p->size = sizeof(client_packet);
 	p->type = type;
+	p->data = arg;
 	
 	if ((sent = send(s, p, p->size, 0)) == -1)
 		exit_failure("send");
@@ -158,22 +159,24 @@ int establish_connection(void) {
 
 int main(int argc, char *argv[]) {
 
-	int s, c;
+	int s, c, handset = 0;
 	int flags = 0;
 
 	s = establish_connection();
 
 	/* Parse command line options */
-	while ((c = getopt (argc, argv, "rdps")) != -1) {
+	while ((c = getopt (argc, argv, "rd:p:s")) != -1) {
 		switch (c) {
 		case 'r':
 			flags |= F_ACTIVATE_REG;
 			break;
 		case 'd':
 			flags |= F_DELETE_HSET;
+			handset = atoi(optarg);
 			break;
 		case 'p':
 			flags |= F_PING_HSET;
+			handset = atoi(optarg);
 			break;
 		case 's':
 			flags |= F_GET_STATUS;
@@ -184,22 +187,22 @@ int main(int argc, char *argv[]) {
 
 	if (flags & F_ACTIVATE_REG) {
 		printf("activate registration\n");
-		send_packet(s, REGISTRATION);
+		send_packet(s, REGISTRATION, 0);
 	}
 
 	if (flags & F_DELETE_HSET) {
-		printf("delete hset\n");
-		send_packet(s, DELETE_HSET);
+		printf("delete hset %d\n", handset);
+		send_packet(s, DELETE_HSET, handset);
 	}
 
 	if (flags & F_PING_HSET) {
-		printf("ping hset\n");
-		send_packet(s, PING_HSET);
+		printf("ping hset %d\n", handset);
+		send_packet(s, PING_HSET, handset);
 	}
 
 	if (flags & F_GET_STATUS) {
 		printf("get status\n");
-		send_packet(s, GET_STATUS);
+		send_packet(s, GET_STATUS, 0);
 		struct status_packet *p = get_reply(s);
 		status_packet(p);
 	}

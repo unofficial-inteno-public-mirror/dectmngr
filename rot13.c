@@ -93,6 +93,9 @@ static int list_handsets(void) {
 
 
 
+
+
+
 int register_handsets_start(void)
 {
   
@@ -210,10 +213,51 @@ static void get_handset_ipui(int handset) {
 }
 
 
+void delete_hset(int handset) {  
+
+	unsigned char *tempPtr = NULL;  
+	printf("sync time: %d\n", handset);
+
+	tempPtr = (unsigned char*) malloc(4);
+	if (tempPtr == NULL) {
+		printf("No more memory!!!");
+		return;
+	}
+
+
+	*(tempPtr+0) = 0; // Length MSB
+	*(tempPtr+1) = 3; // Length LSB
+	*(tempPtr+2) = (unsigned char) ((API_FP_MM_DELETE_REGISTRATION_REQ&0xff00)>>8); // Primitive MSB
+	*(tempPtr+3) = (unsigned char) (API_FP_MM_DELETE_REGISTRATION_REQ&0x00ff);      // Primitive LSB
+	*(tempPtr+4) = handset;
+
+	write_frame(tempPtr);
+
+	
+	
+}
+
+
+
+
+
+void present_ind(unsigned char *mail) {  
+
+	int handset;
+	
+	handset = ((ApiFpMmHandsetPresentIndType*) mail)->HandsetId;
+	printf("INPUT: API_FP_MM_HANDSET_PRESENT_IND from handset (%d)\n", handset);
+
+	status.handset[handset - 1].present = TRUE;
+
+	//sync_time(handset);
+}
+
 
 void registration_count_cfm(unsigned char *mail) {  
 
 	int i, handset;
+
 
          printf("INPUT: API_FP_MM_GET_REGISTRATION_COUNT_CFM\n");
          if ( ((ApiFpMmGetRegistrationCountCfmType*) mail)->Status == RSS_SUCCESS )
@@ -233,17 +277,43 @@ void registration_count_cfm(unsigned char *mail) {
 				 handset = ((ApiFpMmGetRegistrationCountCfmType*) mail)->HandsetId[i];
 				 //dectUtilSetHandsetPresent (handset, TRUE);
 				 printf("Handset (%d) registered\n", handset );
-				 get_handset_ipui(handset);
+
 
 				 status.handset[i].registered = TRUE;
 				 
 			 }
-
+		 /* Get the ipui of the first handset. For some damn
+		    reason we can't to all of them at once. */
+		 handset = ((ApiFpMmGetRegistrationCountCfmType*) mail)->HandsetId[0];
+		 get_handset_ipui(handset);
 	 }
 	 
 	 
 	 //exit(0);
 }
+
+
+
+
+
+
+
+void delete_registration_cfm(unsigned char *mail) {  
+
+	int handset;
+
+	handset = ((ApiFpMmDeleteRegistrationCfmType*) mail)->HandsetId;
+	
+	if (((ApiFpMmGetRegistrationCountCfmType*) mail)->Status == RSS_SUCCESS ) {
+
+		printf("deleted handset: %d\n", handset);
+		status.handset[handset - 1].registered = FALSE;
+		status.handset[handset - 1].present = FALSE;
+	}
+	
+}
+
+
 
 
 
@@ -269,83 +339,96 @@ static void handset_ipui_cfm(unsigned char *mail) {
 	 for (i = 0; i < 5; i++)
 		 status.handset[handset - 1].ipui[i] = ((ApiFpMmGetHandsetIpuiCfmType *) mail)->IPUI[i];
 	 
+	 /* Check if the next handset is also registeried */
+	 if (status.handset[handset].registered == TRUE)
+		 get_handset_ipui(handset + 1);
 }
+
+
 
 
 
 void handle_dect_packet(unsigned char *buf) {
 
-  RosPrimitiveType primitive;
+	RosPrimitiveType primitive;
+	int i;
+	struct packet *p = (struct packet *)buf;
 
-  /* /\* Dump the packet. *\/ */
-  /* printf("[RDECT][%04d] - ", buf->size); */
-  /* for (i=0 ; i<n ; i++) */
-  /* 	  printf("%02x ", buf->data[i]); */
-  /* printf("\n"); */
+	primitive = ((recDataType *) buf)->PrimitiveIdentifier;
   
-  primitive = ((recDataType *) buf)->PrimitiveIdentifier;
-  
-  switch (primitive) {
+	switch (primitive) {
 	
-  case API_FP_CC_SETUP_IND:
-    printf("API_FP_CC_SETUP_IND\n");
-    break;
+	case API_FP_CC_SETUP_IND:
+		printf("API_FP_CC_SETUP_IND\n");
+		break;
 
-  case API_FP_CC_REJECT_IND:
-    printf("API_FP_CC_REJECT_IND\n");
-    break;
+	case API_FP_CC_REJECT_IND:
+		printf("API_FP_CC_REJECT_IND\n");
+		break;
 
-  case API_FP_CC_RELEASE_IND:
-    printf("API_FP_CC_RELEASE_IND\n");
-    break;
+	case API_FP_CC_RELEASE_IND:
+		printf("API_FP_CC_RELEASE_IND\n");
+		break;
 
-  case API_FP_CC_CONNECT_CFM:
-    printf("API_FP_CC_CONNECT_CFM\n");
-    break;
+	case API_FP_FWU_DEVICE_NOTIFY_IND:
+		printf("API_FP_FWU_DEVICE_NOTIFY_IND\n");
+		break;
 
-  case API_FP_CC_INFO_IND:
-    printf("API_FP_CC_INFO_IND\n");
-    break;
+	case API_FP_CC_CONNECT_CFM:
+		printf("API_FP_CC_CONNECT_CFM\n");
+		break;
 
-  case API_FP_LINUX_NVS_UPDATE_IND:
-    printf("API_FP_LINUX_NVS_UPDATE_IND\n");
-    break;
+	case API_FP_CC_INFO_IND:
+		printf("API_FP_CC_INFO_IND\n");
+		break;
 
-  case API_FP_MM_HANDSET_PRESENT_IND:
-    printf("API_FP_MM_HANDSET_PRESENT_IND\n");
-    break;
+	case API_FP_LINUX_NVS_UPDATE_IND:
+		printf("API_FP_LINUX_NVS_UPDATE_IND\n");
+		break;
 
-  case API_FP_MM_SET_REGISTRATION_MODE_CFM:
-    printf("API_FP_MM_SET_REGISTRATION_MODE_CFM\n");
-    break;
+	case API_FP_MM_HANDSET_PRESENT_IND:
+		printf("API_FP_MM_HANDSET_PRESENT_IND\n");
+		present_ind(buf);
+		list_handsets();
+		break;
 
-  case API_FP_MM_GET_HANDSET_IPUI_CFM:
-    printf("API_FP_MM_GET_HANDSET_IPUI_CFM\n");
-    handset_ipui_cfm(buf);
-    break;
+	case API_FP_MM_SET_REGISTRATION_MODE_CFM:
+		printf("API_FP_MM_SET_REGISTRATION_MODE_CFM\n");
+		break;
 
-  case API_FP_MM_GET_REGISTRATION_COUNT_CFM:
-    printf("API_FP_MM_GET_REGISTRATION_COUNT_CFM\n");
-    registration_count_cfm(buf);
-    break;
+	case API_FP_MM_GET_HANDSET_IPUI_CFM:
+		printf("API_FP_MM_GET_HANDSET_IPUI_CFM\n");
+		handset_ipui_cfm(buf);
+		break;
 
-  case API_FP_MM_REGISTRATION_COMPLETE_IND:
-    printf("API_FP_MM_REGISTRATION_COMPLETE_IND\n");
-    break;
+	case API_FP_MM_GET_REGISTRATION_COUNT_CFM:
+		printf("API_FP_MM_GET_REGISTRATION_COUNT_CFM\n");
+		registration_count_cfm(buf);
+		break;
 
-  case API_FP_LINUX_INIT_CFM:
-    printf("API_FP_LINUX_INIT_CFM\n");
-    list_handsets();
-    break;
+	case API_FP_MM_DELETE_REGISTRATION_CFM:
+		printf("API_FP_MM_DELETE_REGISTRATION_CFM\n");
+		delete_registration_cfm(buf);
+		break;
 
-  case API_FP_GET_EEPROM_CFM:
-    printf("API_FP_GET_EEPROM_CFM\n");
-    break;
+	case API_FP_MM_REGISTRATION_COMPLETE_IND:
+		printf("API_FP_MM_REGISTRATION_COMPLETE_IND\n");
+		list_handsets();
+		break;
 
-  default:
-    printf("Unknown packet\n");
-    break;
-  }
+	case API_FP_LINUX_INIT_CFM:
+		printf("API_FP_LINUX_INIT_CFM\n");
+		list_handsets();
+		break;
+
+	case API_FP_GET_EEPROM_CFM:
+		printf("API_FP_GET_EEPROM_CFM\n");
+		break;
+
+	default:
+		printf("Unknown packet\n");
+		break;
+	}
   
 
 }
@@ -353,9 +436,9 @@ void handle_dect_packet(unsigned char *buf) {
 
 
 
-static registration(struct bufferevent *bev, packet_t *p) {
+static void registration(struct bufferevent *bev, packet_t *p) {
 
-	struct timeval tv = {5,0};
+	struct timeval tv = {30,0};
 	struct event *timeout;
 	
 
@@ -373,12 +456,13 @@ static get_status(struct bufferevent *bev) {
 }
 
 
-void handle_client_packet(struct bufferevent *bev, packet_t *p) {
+void handle_client_packet(struct bufferevent *bev, client_packet *p) {
 
 	switch (p->type) {
 
 	case GET_STATUS:
 		printf("GET_STATUS\n");
+		list_handsets();
 		get_status(bev);
 		break;
 
@@ -389,11 +473,12 @@ void handle_client_packet(struct bufferevent *bev, packet_t *p) {
 		break;
 
 	case PING_HSET:
-		printf("PING_HSET\n");
+		printf("PING_HSET %d\n", p->data);
 		break;
 
 	case DELETE_HSET:
-		printf("DELETE_HSET\n");
+		printf("DELETE_HSET %d\n", p->data);
+		delete_hset(p->data);
 		break;
 
 	default:
@@ -437,6 +522,12 @@ void packet_read(struct bufferevent *bev, void *ctx) {
 
 		switch (info->pkt->type) {
 		case DECT_PACKET:
+			/* Dump the packet. */
+			printf("[RDECT][%04d] - ", info->pkt->size);
+			for (i=0 ; i<info->pkt->size ; i++)
+				printf("%02x ", info->pkt->data[i]);
+			printf("\n");
+
 			handle_dect_packet(info->pkt->data);
 			break;
 		default:
@@ -548,7 +639,6 @@ static void init_status(void) {
 	status.type = RESPONSE;
 	status.reg_mode = DISABLED;
 
-	status.handset[2].present = TRUE;
 }
 
 
