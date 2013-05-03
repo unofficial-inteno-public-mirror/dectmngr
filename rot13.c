@@ -216,7 +216,7 @@ static void get_handset_ipui(int handset) {
 void delete_hset(int handset) {  
 
 	unsigned char *tempPtr = NULL;  
-	printf("sync time: %d\n", handset);
+	printf("delete handset: %d\n", handset);
 
 	tempPtr = (unsigned char*) malloc(4);
 	if (tempPtr == NULL) {
@@ -279,7 +279,7 @@ void registration_count_cfm(unsigned char *mail) {
 				 printf("Handset (%d) registered\n", handset );
 
 
-				 status.handset[i].registered = TRUE;
+				 status.handset[handset - 1].registered = TRUE;
 				 
 			 }
 		 /* Get the ipui of the first handset. For some damn
@@ -304,12 +304,12 @@ void delete_registration_cfm(unsigned char *mail) {
 
 	handset = ((ApiFpMmDeleteRegistrationCfmType*) mail)->HandsetId;
 	
-	if (((ApiFpMmGetRegistrationCountCfmType*) mail)->Status == RSS_SUCCESS ) {
+	/* if (((ApiFpMmGetRegistrationCountCfmType*) mail)->Status == RSS_SUCCESS ) { */
 
 		printf("deleted handset: %d\n", handset);
 		status.handset[handset - 1].registered = FALSE;
 		status.handset[handset - 1].present = FALSE;
-	}
+	/* } */
 	
 }
 
@@ -462,7 +462,7 @@ void handle_client_packet(struct bufferevent *bev, client_packet *p) {
 
 	case GET_STATUS:
 		printf("GET_STATUS\n");
-		list_handsets();
+		//list_handsets();
 		get_status(bev);
 		break;
 

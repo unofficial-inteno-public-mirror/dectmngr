@@ -16,8 +16,8 @@ typedef struct dect_state {
 } dect_state;
 
 enum reg_state {
-	ENABLED,
 	DISABLED,
+	ENABLED,
 };
 
 enum boolean {
