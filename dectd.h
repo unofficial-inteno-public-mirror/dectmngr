@@ -59,6 +59,12 @@ typedef struct client_packet {
 } client_packet;
 
 
+struct dect_packet {
+	PACKET_HEADER
+	uint8_t data[MAX_MAIL_SIZE];
+};
+
+
 struct hset {
 	uint8_t registered;
 	uint8_t present;

@@ -114,26 +114,18 @@ int main(void)
 		
 		/* Check /dev/dect for data */
 		if (FD_ISSET(d, &rfds)) {
-			ret = read(d, buf, sizeof(buf));
+			struct dect_packet p;
+			p.type = DECT_PACKET;
+			ret = read(d, p.data, MAX_MAIL_SIZE);
 			printf("dect %d\n", ret);
 			if (ret == -1) {
 				exit_failure("read");
 			} else {
+				p.size = ret + sizeof(struct packet_header);
 				for (i = 0; i <= fdmax; i++) {
 					/* If data is read from /dev/dect, send it to all clients */
 					if (i != l && i != d) {
-
-						struct packet_header hdr;
-						hdr.size = (uint32_t)ret + sizeof(hdr);
-						hdr.type = DECT_PACKET;
-						
-						/* hdr[0] = (uint8_t)((ret & 0xff00) >> 8); // MSB */
-						/* hdr[1] = (uint8_t)(ret & 0x00ff);        // LSB */
-						if (send(i, &hdr, sizeof(hdr), 0) == -1)
-							perror("send");
-
-						/* TODO, should sendall here */
-						if (send(i, buf, ret, 0) == -1)
+						if (send(i, &p, p.size, 0) == -1)
 							perror("send");
 					}
 				}
