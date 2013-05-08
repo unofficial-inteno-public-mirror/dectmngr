@@ -285,7 +285,8 @@ void registration_count_cfm(unsigned char *mail) {
 		 /* Get the ipui of the first handset. For some damn
 		    reason we can't to all of them at once. */
 		 handset = ((ApiFpMmGetRegistrationCountCfmType*) mail)->HandsetId[0];
-		 get_handset_ipui(handset);
+		 if (handset > 0)
+			 get_handset_ipui(handset);
 	 }
 	 
 	 
@@ -389,7 +390,6 @@ void handle_dect_packet(unsigned char *buf) {
 	case API_FP_MM_HANDSET_PRESENT_IND:
 		printf("API_FP_MM_HANDSET_PRESENT_IND\n");
 		present_ind(buf);
-		list_handsets();
 		break;
 
 	case API_FP_MM_SET_REGISTRATION_MODE_CFM:
@@ -462,7 +462,7 @@ void handle_client_packet(struct bufferevent *bev, client_packet *p) {
 
 	case GET_STATUS:
 		printf("GET_STATUS\n");
-		//list_handsets();
+		list_handsets();
 		get_status(bev);
 		break;
 
@@ -499,47 +499,51 @@ void packet_read(struct bufferevent *bev, void *ctx) {
 	struct evbuffer *input = bufferevent_get_input(bev);
 	
 	printf("packet read, %s\n", info->name);
-
-	/* Do we have a packet header? */
-	if (!info->pkt->size && (evbuffer_get_length(input) >= sizeof(packet_header_t))) {
+	
+	while (1) {
+		/* Do we have a packet header? */
+		if (!info->pkt->size && (evbuffer_get_length(input) >= sizeof(packet_header_t))) {
 		
-		n = evbuffer_remove(input, info->pkt, sizeof(packet_header_t));
+			n = evbuffer_remove(input, info->pkt, sizeof(packet_header_t));
 
-		if (info->pkt->size > sizeof(packet_t)) {
-			printf("need to allocate more space for packet\n");
-			if((info->pkt = realloc(info->pkt, info->pkt->size)) == NULL)
-				exit_failure("realloc");
+			if (info->pkt->size > sizeof(packet_t)) {
+				printf("need to allocate more space for packet\n");
+				if((info->pkt = realloc(info->pkt, info->pkt->size)) == NULL)
+					exit_failure("realloc");
 
-		}
+			}
 		
-	}
+		} else 
+			return;
 
 
-	/* Is there an entire packet in the buffer? */
-	if (evbuffer_get_length(input) >= (info->pkt->size - sizeof(packet_header_t))) {
+		/* Is there an entire packet in the buffer? */
+		if (evbuffer_get_length(input) >= (info->pkt->size - sizeof(packet_header_t))) {
 
-		n = evbuffer_remove(input, info->pkt->data, info->pkt->size - sizeof(packet_header_t));
+			n = evbuffer_remove(input, info->pkt->data, info->pkt->size - sizeof(packet_header_t));
 
-		switch (info->pkt->type) {
-		case DECT_PACKET:
-			/* Dump the packet. */
-			printf("[RDECT][%04d] - ", info->pkt->size);
-			for (i=0 ; i<info->pkt->size ; i++)
-				printf("%02x ", info->pkt->data[i]);
-			printf("\n");
+			switch (info->pkt->type) {
+			case DECT_PACKET:
+				/* Dump the packet. */
+				printf("[RDECT][%04d] - ", info->pkt->size - sizeof(packet_header_t));
+				for (i=0 ; i<info->pkt->size - sizeof(packet_header_t); i++)
+					printf("%02x ", info->pkt->data[i]);
+				printf("\n");
 
-			handle_dect_packet(info->pkt->data);
-			break;
-		default:
-			handle_client_packet(bev, info->pkt);
-			break;
-		}
+				handle_dect_packet(info->pkt->data);
+				break;
+			default:
+				handle_client_packet(bev, info->pkt);
+				break;
+			}
 
 		
-		/* Reset packet struct */
-		free(info->pkt);
-		info->pkt = calloc(sizeof(packet_t), 1);
+			/* Reset packet struct */
+			free(info->pkt);
+			info->pkt = calloc(sizeof(packet_t), 1);
 
+		} else
+			return;
 	}
 }
 
