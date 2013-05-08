@@ -53,7 +53,7 @@ all: main
 
 dynamic: all
 
-main: $(OBJS) dectproxy atohx dectd dect dectmngr
+main: $(OBJS) dectproxy atohx dect dectmngr
 
 dectmngr: dectmngr.o
 	$(CC) $(LDFLAGS) $(INCLUDE_PATHS) -o $@ $< -levent
