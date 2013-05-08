@@ -53,13 +53,9 @@ all: main
 
 dynamic: all
 
-main: $(OBJS) dectproxy atohx dectd dect rot13
-	$(CC) $(LDFLAGS) $(INCLUDE_PATHS) -o dectmngr $(OBJS)
+main: $(OBJS) dectproxy atohx dectd dect dectmngr
 
-dectd: dectd.o
-	$(CC) $(LDFLAGS) $(INCLUDE_PATHS) -o $@ $<
-
-rot13: rot13.o
+dectmngr: dectmngr.o
 	$(CC) $(LDFLAGS) $(INCLUDE_PATHS) -o $@ $< -levent
 
 dect: dect.o
