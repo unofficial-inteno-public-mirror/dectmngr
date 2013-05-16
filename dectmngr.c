@@ -462,7 +462,6 @@ void handle_client_packet(struct bufferevent *bev, client_packet *p) {
 
 	case GET_STATUS:
 		printf("GET_STATUS\n");
-		list_handsets();
 		get_status(bev);
 		break;
 
