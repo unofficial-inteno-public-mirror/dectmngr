@@ -59,7 +59,7 @@ dectmngr: dectmngr.o
 	$(CC) $(LDFLAGS) $(INCLUDE_PATHS) -o $@ $< -levent
 
 dect: dect.o
-	$(CC) $(LDFLAGS) $(INCLUDE_PATHS) -o $@ $<
+	$(CC) $(LDFLAGS) $(INCLUDE_PATHS) -o $@ $< -ljson
 
 dectproxy: dectproxy.o
 	$(CC) $(LDFLAGS) $(INCLUDE_PATHS) -o $@ $<

@@ -20,10 +20,10 @@ enum reg_state {
 	ENABLED,
 };
 
-enum boolean {
-	FALSE,
-	TRUE,
-};
+/* enum boolean { */
+/* 	FALSE, */
+/* 	TRUE, */
+/* }; */
 
 
 enum packet_type {

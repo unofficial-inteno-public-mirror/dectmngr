@@ -17,6 +17,7 @@
 #define F_DELETE_HSET  1 << 1
 #define F_PING_HSET    1 << 2
 #define F_GET_STATUS   1 << 3
+#define F_JSON   1 << 4
 
 
 
