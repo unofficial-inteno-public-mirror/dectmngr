@@ -93,6 +93,61 @@ static void status_packet(struct status_packet *p) {
 
 }
 
+
+
+static void status_packet_json(struct status_packet *p) {
+
+	int i, j;
+	char buf[100];
+
+	json_object *root = json_object_new_object();
+	json_object *reg_active;
+	
+	if (p->reg_mode == ENABLED)
+		reg_active = json_object_new_boolean(1);
+	else
+		reg_active = json_object_new_boolean(0);
+
+	
+	json_object_object_add(root, "reg_active", reg_active);
+
+
+        json_object *hset_a = json_object_new_array();
+
+	for (i = 0; i < MAX_NR_HSETS; i++) {
+		
+		if (p->handset[i].registered == TRUE) {
+			json_object *handset = json_object_new_object();
+			json_object *jint = json_object_new_int(i + 1);
+			json_object_object_add(handset, "handset", jint);
+			
+			for (j = 0; j < 5; j++)
+				snprintf(buf + 3*j, 6, "%2.2x ", p->handset[i].ipui[j]);
+
+			json_object *rfpi = json_object_new_string(buf);
+			json_object_object_add(handset, "rfpi", rfpi);
+
+			json_object *present;
+			if (p->handset[i].present == TRUE) {
+				 present = json_object_new_boolean(1);
+			} else
+				present = json_object_new_boolean(0);
+
+			json_object_object_add(handset, "present", present);
+
+			json_object_array_add(hset_a, handset);
+
+		}
+	}
+
+	json_object_object_add(root, "handsets", hset_a);
+
+        printf ("%s",json_object_to_json_string(root));	
+
+}
+
+
+
 static send_packet(uint8_t s, uint8_t type, uint8_t arg) {
 
 	client_packet *p;
@@ -167,14 +222,14 @@ static void dump_json(void) {
 
         /*Form the json object*/
         /*Each of these is like a key value pair*/
-        json_object_object_add(jobj,"Site Name", jstring);
-        json_object_object_add(jobj,"Technical blog", jboolean);
-        json_object_object_add(jobj,"Average posts per day", jdouble);
-        json_object_object_add(jobj,"Number of posts", jint);
-        json_object_object_add(jobj,"Categories", jarray);
+        json_object_object_add(jobj,"site_name", jstring);
+        json_object_object_add(jobj,"technical_blog", jboolean);
+        json_object_object_add(jobj,"average_posts", jdouble);
+        json_object_object_add(jobj,"nr_posts", jint);
+        json_object_object_add(jobj,"categories", jarray);
 
         /*Now printing the json object*/
-        printf ("The json object created: %s\n",json_object_to_json_string(jobj));
+        printf ("%s",json_object_to_json_string(jobj));
 
 
 }
@@ -259,7 +314,9 @@ int main(int argc, char *argv[]) {
 	}
 
 	if (flags & F_JSON) {
-		dump_json();
+		send_packet(s, GET_STATUS, 0);
+		struct status_packet *p = get_reply(s);
+		status_packet_json(p);
 	}
 	
 	return 0;
