@@ -95,6 +95,181 @@ static int list_handsets(void) {
 
 
 
+#ifndef RSOFFSETOF
+  /*! \def RSOFFSETOF(type, field)
+  * Computes the byte offset of \a field from the beginning of \a type. */
+  #define RSOFFSETOF(type, field) ((size_t)(&((type*)0)->field))
+#endif
+
+
+
+void ApiBuildInfoElement(ApiInfoElementType **IeBlockPtr,
+                         rsuint16 *IeBlockLengthPtr,
+                         ApiIeType Ie,
+                         rsuint8 IeLength,
+                         rsuint8 *IeData)
+{
+  rsuint16 newLength = *IeBlockLengthPtr + RSOFFSETOF(ApiInfoElementType, IeData) + IeLength;
+
+  /* Ie is in little endian inside the infoElement list while all arguments to function are in bigEndian */
+  rsuint16 targetIe = Ie;
+
+  /* Allocate / reallocate a heap block to store (append) the info elemte in. */
+  ApiInfoElementType *p = malloc(newLength);
+  if (p == NULL)
+  {
+    // We failed to get e new block.
+    // We free the old and return with *IeBlockPtr == NULL.
+    ApiFreeInfoElement(IeBlockPtr);
+    *IeBlockLengthPtr = 0;
+  }
+  else
+  {
+    // Update *IeBlockPointer with the address of the new block
+    //     *IeBlockPtr = p;
+    if( *IeBlockPtr != NULL )
+    {
+      /* Copy over existing block data */
+      memcpy( (rsuint8*)p, (rsuint8*)*IeBlockPtr, *IeBlockLengthPtr);
+      
+      /* Free existing block memory */
+      ApiFreeInfoElement(IeBlockPtr);
+    }
+    
+    /* Assign newly allocated block to old pointer */
+    *IeBlockPtr = p;
+
+    // Append the new info element to the allocated block
+    p = (ApiInfoElementType*)(((rsuint8*)p) + *IeBlockLengthPtr); // p now points to the first byte of the new info element
+    
+    p->Ie = targetIe;
+
+    p->IeLength = IeLength;
+    memcpy (p->IeData, IeData, IeLength);
+    // Update *IeBlockLengthPtr with the new block length
+    *IeBlockLengthPtr = newLength;
+  }
+}
+
+/***************************************************************************/
+void ApiFreeInfoElement(ApiInfoElementType **IeBlockPtr)
+{
+  free((void*)*IeBlockPtr);
+  *IeBlockPtr = NULL;
+}
+
+
+
+void ping_handset_start(int handset)
+{
+	ApiCallingNameType * pCallingNameIe    = NULL;
+	ApiInfoElementType * pingIeBlockPtr    = NULL;
+	ApiFpCcSetupReqType * pingMailPtr      = NULL;
+	unsigned short pingIeBlockLength       = 0;
+	char callingName[]                     = "HANDSET LOCATOR";
+	int callIdx;
+
+	/************************************************
+	 * create API_IE_CALLING_PARTY_NAME infoElement *
+	 ************************************************/
+
+	pCallingNameIe = malloc( (sizeof(ApiCallingNameType) - 1) + (strlen(callingName)+1) );
+
+	if( pCallingNameIe != NULL )
+		{
+			pCallingNameIe->UsedAlphabet     = AUA_DECT;
+			pCallingNameIe->PresentationInd  = API_PRESENTATION_HANSET_LOCATOR;
+			pCallingNameIe->ScreeningInd     = API_NETWORK_PROVIDED;
+			pCallingNameIe->NameLength       = strlen(callingName);
+			memcpy( &(pCallingNameIe->Name[0]), callingName, (strlen(callingName)+1) );
+
+			/* Add to infoElement block */
+			ApiBuildInfoElement( &pingIeBlockPtr,
+					     &pingIeBlockLength,
+					     API_IE_CALLING_PARTY_NAME,
+					     ((sizeof(ApiCallingNameType) - 1) + (strlen(callingName)+1) ),
+					     (unsigned char*)pCallingNameIe);
+
+			/* free infoElement */
+			free(pCallingNameIe);
+
+			if( pingIeBlockPtr == NULL )
+				{
+					printf("dectCallMgrSetupPingingCall:  ApiBuildInfoElement FAILED for API_IE_CALLING_PARTY_NAME!!\n");
+					return;
+				}
+		}
+	else
+		{
+			printf("dectCallMgrSetupPingingCall: malloc FAILED for API_IE_CALLING_PARTY_NAME!!\n");
+			return;
+		}
+
+	/*****************************************************
+	 * create API_FP_CC_SETUP_REQ mail *
+	 *****************************************************/
+	if( pingIeBlockLength > 0 )
+		{
+			/* Allocate memory for mail */
+			pingMailPtr = (ApiFpCcSetupReqType *) malloc( (sizeof(ApiFpCcSetupReqType)-1) + pingIeBlockLength );
+			if (pingMailPtr != NULL)
+				{
+					/* Fillout mail contents */
+					((ApiFpCcSetupReqType *) pingMailPtr)->Primitive    = API_FP_CC_SETUP_REQ;
+					((ApiFpCcSetupReqType *) pingMailPtr)->CallReference.HandsetId = handset;
+					((ApiFpCcSetupReqType *) pingMailPtr)->BasicService = API_BASIC_SPEECH;
+					((ApiFpCcSetupReqType *) pingMailPtr)->CallClass    = API_CC_NORMAL;
+					((ApiFpCcSetupReqType *) pingMailPtr)->SourceId     = 0; /* 0 is the base station id */
+					((ApiFpCcSetupReqType *) pingMailPtr)->Signal       = API_CC_SIGNAL_ALERT_ON_PATTERN_2;
+
+					/* Copy over infoElements */
+					memcpy( &(((ApiFpCcSetupReqType *) pingMailPtr)->InfoElement[0]), pingIeBlockPtr, pingIeBlockLength );
+					ApiFreeInfoElement( &pingIeBlockPtr );
+
+					((ApiFpCcSetupReqType *) pingMailPtr)->InfoElementLength = pingIeBlockLength;
+				}
+			else
+				{
+					printf("dectCallMgrSetupPingingCall: No more memory available for API_FP_CC_SETUP_REQ!!!\n");
+					return;
+				}
+		}
+	else
+		{
+			printf("dectCallMgrSetupPingingCall: zero pingIeBlockLength!!!\n");
+			ApiFreeInfoElement( &pingIeBlockPtr );
+			return;
+		}
+
+
+	/* Send the mail */
+	printf("OUTPUT: API_FP_CC_SETUP_REQ (ping)\n");
+	dectDrvWrite( (unsigned char *)pingMailPtr, (sizeof(ApiFpCcSetupReqType)-1) + pingIeBlockLength );
+
+}
+
+
+
+
+
+
+//void do_accept(evutil_socket_t listener, short event, void *arg) {
+void ping_handset_stop(struct event *ev, short error, void *arg)
+{
+        unsigned char o_buf[5];
+	int *handset = arg;
+
+	/* write endpoint id to device */
+        *(o_buf + 0) = ((API_FP_CC_RELEASE_REQ & 0xff00) >> 8);
+	*(o_buf + 1) = ((API_FP_CC_RELEASE_REQ & 0x00ff) >> 0);
+        *(o_buf + 2) = *handset;
+        *(o_buf + 3) = 0;
+	*(o_buf + 4) = 0;
+
+	printf("API_FP_CC_RELEASE_REQ\n");
+	dectDrvWrite(o_buf, 5);
+}
+
 
 
 int register_handsets_start(void)
@@ -439,7 +614,7 @@ void handle_dect_packet(unsigned char *buf) {
 
 static void registration(struct bufferevent *bev, packet_t *p) {
 
-	struct timeval tv = {30,0};
+	struct timeval tv = {60,0};
 	struct event *timeout;
 	
 
@@ -447,8 +622,24 @@ static void registration(struct bufferevent *bev, packet_t *p) {
 	register_handsets_start();
 	timeout = event_new(base, -1, EV_TIMEOUT, (void *)register_handsets_stop, NULL);
 	event_add(timeout, &tv);
-	//send_client(bev, OK);
 }
+
+
+static void ping_handset(int handset) {
+
+	struct timeval tv = {20,0};
+	struct event *timeout;
+	
+	printf("ping_handset\n");
+
+	int *hst = malloc(sizeof(int));
+	*hst = handset;
+
+	ping_handset_start(handset);
+	timeout = event_new(base, -1, EV_TIMEOUT, (void *)ping_handset_stop, hst);
+	event_add(timeout, &tv);
+}
+
 
 
 static get_status(struct bufferevent *bev) {
@@ -474,6 +665,7 @@ void handle_client_packet(struct bufferevent *bev, client_packet *p) {
 
 	case PING_HSET:
 		printf("PING_HSET %d\n", p->data);
+		ping_handset(p->data);
 		break;
 
 	case DELETE_HSET:
