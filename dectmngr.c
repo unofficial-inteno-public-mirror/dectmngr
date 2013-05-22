@@ -15,6 +15,7 @@
 #include <dectUtils.h>
 #include <stdint.h>
 #include <dectNvsCtl.h>
+#include <json/json.h>
 
 #include "dectd.h"
 
