@@ -493,7 +493,19 @@ void delete_registration_cfm(unsigned char *mail) {
 }
 
 
+static void connect_ind(unsigned char *buf) {
 
+	ApiHandsetIdType handset;
+	struct brcm_pvt *p;
+	struct brcm_subchannel *sub;
+	unsigned char o_buf[5];
+
+	handset = ((ApiFpCcConnectCfmType*) buf)->CallReference.HandsetId;
+	
+	if (status.handset[(handset) - 1].pinging == TRUE)
+		status.handset[(handset) - 1].pinging = FALSE;
+
+}
 
 
 static void handset_ipui_cfm(unsigned char *mail) {  
@@ -557,8 +569,17 @@ void handle_dect_packet(unsigned char *buf) {
 		printf("API_FP_CC_CONNECT_CFM\n");
 		break;
 
+	case API_FP_CC_CONNECT_IND:
+		printf("API_FP_CC_CONNECT_IND\n");
+		connect_ind(buf);
+		break;
+
 	case API_FP_CC_INFO_IND:
 		printf("API_FP_CC_INFO_IND\n");
+		break;
+
+	case API_FP_CC_ALERT_IND:
+		printf("API_FP_CC_ALERT_IND\n");
 		break;
 
 	case API_FP_LINUX_NVS_UPDATE_IND:
