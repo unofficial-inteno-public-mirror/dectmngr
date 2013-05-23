@@ -259,6 +259,8 @@ void ping_handset_stop(struct event *ev, short error, void *arg)
         unsigned char o_buf[5];
 	int *handset = arg;
 
+	status.handset[(*handset) - 1].pinging = FALSE;
+
 	/* write endpoint id to device */
         *(o_buf + 0) = ((API_FP_CC_RELEASE_REQ & 0xff00) >> 8);
 	*(o_buf + 1) = ((API_FP_CC_RELEASE_REQ & 0x00ff) >> 0);
@@ -631,6 +633,8 @@ static void ping_handset(int handset) {
 	struct event *timeout;
 	
 	printf("ping_handset\n");
+
+	status.handset[handset - 1].pinging = TRUE;
 
 	int *hst = malloc(sizeof(int));
 	*hst = handset;

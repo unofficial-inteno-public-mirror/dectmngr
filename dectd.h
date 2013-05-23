@@ -68,6 +68,7 @@ struct dect_packet {
 struct hset {
 	uint8_t registered;
 	uint8_t present;
+	uint8_t pinging;
 	uint8_t ipui[5];
 };
 

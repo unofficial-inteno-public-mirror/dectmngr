@@ -75,6 +75,12 @@ static void status_packet(struct status_packet *p) {
 			else 
 				printf("\tnot present");
 
+			if (p->handset[i].pinging == TRUE)
+				printf("\tpinging");
+			else 
+				printf("\tnot pinging");
+
+
 		} else {
 			printf("\tnot registered");
 		}
@@ -134,6 +140,15 @@ static void status_packet_json(struct status_packet *p) {
 				present = json_object_new_boolean(0);
 
 			json_object_object_add(handset, "present", present);
+
+			json_object *pinging;
+			if (p->handset[i].pinging == TRUE) {
+				 pinging = json_object_new_boolean(1);
+			} else
+				pinging = json_object_new_boolean(0);
+
+			json_object_object_add(handset, "pinging", pinging);
+
 
 			json_object_array_add(hset_a, handset);
 
