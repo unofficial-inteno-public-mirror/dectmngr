@@ -675,10 +675,6 @@ void handle_client_packet(struct bufferevent *bev, client_packet *p) {
 }
 
 
-
-
-
-
 static void run(void) {
 
 	evutil_socket_t listener;
