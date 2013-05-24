@@ -10,7 +10,7 @@
 #include <getopt.h>
 #include <json/json.h>
 
-#include "dectd.h"
+#include "dect.h"
 
 
 #define F_ACTIVATE_REG 1 << 0
@@ -35,25 +35,6 @@ void exit_failure(const char *format, ...)
 	
 	fprintf(stderr, "%s: %s\n", msg, err);
 	exit(EXIT_FAILURE);
-}
-
-
-
-static handle_response(packet_t *p) {
-
-	switch (p->type) {
-		
-	case RESPONSE:
-		printf("OK\n");
-		break;
-
-	case ERROR:
-		printf("ERROR\n");
-		break;
-	default:
-		printf("unknown packet\n");
-		break;
-	}
 }
 
 
@@ -94,11 +75,7 @@ static void status_packet(struct status_packet *p) {
 
 	if (p->reg_mode == DISABLED)
 		printf("reg_state: DISABLED\n");
-
-	
-
 }
-
 
 
 static void status_packet_json(struct status_packet *p) {
@@ -158,7 +135,6 @@ static void status_packet_json(struct status_packet *p) {
 	json_object_object_add(root, "handsets", hset_a);
 
         printf ("%s",json_object_to_json_string(root));	
-
 }
 
 
@@ -178,11 +154,6 @@ static send_packet(uint8_t s, uint8_t type, uint8_t arg) {
 	
 	if ((sent = send(s, p, p->size, 0)) == -1)
 		exit_failure("send");
-
-	/* if (recv(s, p, sizeof(packet), 0) == -1) */
-	/* 	exit_failure("recv"); */
-
-	/* handle_response(p); */
 
 	free(p);
 }
@@ -245,15 +216,12 @@ static void dump_json(void) {
 
         /*Now printing the json object*/
         printf ("%s",json_object_to_json_string(jobj));
-
-
 }
 
 
 int establish_connection(void) {
 
 	int s;
-
 	struct sockaddr_in remote_addr;
 	socklen_t remote_addr_size;
 

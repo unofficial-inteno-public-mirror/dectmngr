@@ -1,9 +1,7 @@
 #ifndef DECT_H
 #define DECT_H
 
-
-#include <stdint.h>
-
+#define MAX_LINE 16384
 #define MAX_MAIL_SIZE 4098
 #define MAX_LISTENERS 10
 #define PKT_DATA_SIZE 100
@@ -11,19 +9,28 @@
 
 #define MAX(a,b) ((a) > (b) ? (a) : (b))
 
+#ifndef RSOFFSETOF
+  /*! \def RSOFFSETOF(type, field)
+  * Computes the byte offset of \a field from the beginning of \a type. */
+  #define RSOFFSETOF(type, field) ((size_t)(&((type*)0)->field))
+#endif
+
+
+struct info {
+	const char *name;
+	struct packet *pkt;
+};
+
+
 typedef struct dect_state {
 	int reg_state;
 } dect_state;
+
 
 enum reg_state {
 	DISABLED,
 	ENABLED,
 };
-
-/* enum boolean { */
-/* 	FALSE, */
-/* 	TRUE, */
-/* }; */
 
 
 enum packet_type {
@@ -35,6 +42,7 @@ enum packet_type {
 	DECT_PACKET,
 	CLIENT_PACKET,
 };
+
 
 enum packet_resp_type {
 	OK,
@@ -52,6 +60,7 @@ typedef struct packet {
 	PACKET_HEADER
 	uint8_t data[PKT_DATA_SIZE];
 } packet_t;
+
 
 typedef struct client_packet {
 	PACKET_HEADER
@@ -73,8 +82,6 @@ struct hset {
 };
 
 
-
-
 struct status_packet {
 	PACKET_HEADER
 	uint8_t reg_mode;
@@ -82,17 +89,9 @@ struct status_packet {
 };
 
 
-
-
 typedef struct packet_header {
 	PACKET_HEADER
 } packet_header_t;
-
-/* struct data_packet { */
-/* 	uint32_t size; */
-/* 	uint8_t type; */
-/* 	uint8_t *data; */
-/* }; */
 
 
 #endif /* DECT_H */
