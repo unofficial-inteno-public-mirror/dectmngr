@@ -12,7 +12,7 @@
 #include <signal.h>
 #include <unistd.h>
 
-#include "dectd.h"
+#include "dect.h"
 
 
 #define MAX_MAIL_SIZE 4098

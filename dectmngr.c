@@ -27,6 +27,17 @@ struct info *dect_info;
 struct status_packet status;
 
 
+void handle_dect_packet(unsigned char *buf);
+void packet_read(struct bufferevent *bev, void *ctx);
+void handle_client_packet(struct bufferevent *bev, client_packet *p);
+void ApiFreeInfoElement(ApiInfoElementType **IeBlockPtr);
+void ApiBuildInfoElement(ApiInfoElementType **IeBlockPtr,
+                         rsuint16 *IeBlockLengthPtr,
+                         ApiIeType Ie,
+                         rsuint8 IeLength,
+                         rsuint8 *IeData);
+
+
 static void exit_failure(const char *format, ...)
 {
 #define BUF_SIZE 500
@@ -103,7 +114,7 @@ static int write_dect3(int header, int arg) {
 static int write_dect5(int header, int arg) {
 	
 	unsigned char o_buf[5];
-
+	
 	*(o_buf + 0) = (unsigned char) ((header&0xff00)>>8); // Primitive MSB
 	*(o_buf + 1) = (unsigned char) (header&0x00ff);      // Primitive LSB
 	*(o_buf + 2) = arg; //disable registration
@@ -121,14 +132,14 @@ static void list_handsets(void) {
 }
 
 
-static void ApiFreeInfoElement(ApiInfoElementType **IeBlockPtr) {
+void ApiFreeInfoElement(ApiInfoElementType **IeBlockPtr) {
 
 	free((void*)*IeBlockPtr);
 	*IeBlockPtr = NULL;
 }
 
 
-static void ApiBuildInfoElement(ApiInfoElementType **IeBlockPtr,
+void ApiBuildInfoElement(ApiInfoElementType **IeBlockPtr,
                          rsuint16 *IeBlockLengthPtr,
                          ApiIeType Ie,
                          rsuint8 IeLength,
@@ -248,11 +259,17 @@ static void ping_handset_start(int handset) {
 
 	/* Send the mail */
 	printf("OUTPUT: API_FP_CC_SETUP_REQ (ping)\n");
-	_dect_write( (unsigned char *)pingMailPtr, (sizeof(ApiFpCcSetupReqType)-1) + pingIeBlockLength );
+	_write_dect( (unsigned char *)pingMailPtr, (sizeof(ApiFpCcSetupReqType)-1) + pingIeBlockLength );
 }
 
 
-static void registration_count_cfm(unsigned char *mail) {  
+static void get_handset_ipui(int handset) {  
+
+	write_dect3(API_FP_MM_GET_HANDSET_IPUI_REQ, handset);
+}
+
+
+static void registration_count_cfm(unsigned char *mail) {
 
 	int i, handset;
 	
@@ -297,12 +314,6 @@ static void register_handsets_stop(void) {
 
 	status.reg_mode = DISABLED;
 	write_dect3(API_FP_MM_SET_REGISTRATION_MODE_REQ, 0);
-}
-
-
-static void get_handset_ipui(int handset) {  
-
-	write_dect3(API_FP_MM_GET_HANDSET_IPUI_REQ, handset);
 }
 
 
@@ -367,7 +378,7 @@ static void handset_ipui_cfm(unsigned char *mail) {
 }
 
 
-static void registration(struct bufferevent *bev, packet_t *p) {
+static void registration(struct bufferevent *bev, client_packet *p) {
 
 	struct timeval tv = {60,0};
 	struct event *timeout;
@@ -399,56 +410,6 @@ static void ping_handset(int handset) {
 static void get_status(struct bufferevent *bev) {
 	
 	bufferevent_write(bev, &status, sizeof(status));
-}
-
-
-static void packet_read(struct bufferevent *bev, void *ctx) {
-	
-	uint8_t *buf;
-	int n, i, read;
-	struct info *info = ctx;
-	struct evbuffer *input = bufferevent_get_input(bev);
-	
-	while (1) {
-		/* Do we have a packet header? */
-		if (!info->pkt->size && (evbuffer_get_length(input) >= sizeof(packet_header_t))) {
-		
-			n = evbuffer_remove(input, info->pkt, sizeof(packet_header_t));
-			if (info->pkt->size > sizeof(packet_t)) {
-				if((info->pkt = realloc(info->pkt, info->pkt->size)) == NULL)
-					exit_failure("realloc");
-			}
-		
-		} else 
-			return;
-
-		/* Is there an entire packet in the buffer? */
-		if (evbuffer_get_length(input) >= (info->pkt->size - sizeof(packet_header_t))) {
-
-			n = evbuffer_remove(input, info->pkt->data, info->pkt->size - sizeof(packet_header_t));
-
-			switch (info->pkt->type) {
-			case DECT_PACKET:
-				/* Dump the packet. */
-				printf("[RDECT][%04d] - ", info->pkt->size - sizeof(packet_header_t));
-				for (i=0 ; i<info->pkt->size - sizeof(packet_header_t); i++)
-					printf("%02x ", info->pkt->data[i]);
-				printf("\n");
-
-				handle_dect_packet(info->pkt->data);
-				break;
-			default:
-				handle_client_packet(bev, info->pkt);
-				break;
-			}
-
-			/* Reset packet struct */
-			free(info->pkt);
-			info->pkt = calloc(sizeof(packet_t), 1);
-
-		} else
-			return;
-	}
 }
 
 
@@ -542,7 +503,57 @@ static void init_status(void) {
 }
 
 
-static void handle_dect_packet(unsigned char *buf) {
+void packet_read(struct bufferevent *bev, void *ctx) {
+	
+	uint8_t *buf;
+	int n, i, read;
+	struct info *info = ctx;
+	struct evbuffer *input = bufferevent_get_input(bev);
+	
+	while (1) {
+		/* Do we have a packet header? */
+		if (!info->pkt->size && (evbuffer_get_length(input) >= sizeof(packet_header_t))) {
+		
+			n = evbuffer_remove(input, info->pkt, sizeof(packet_header_t));
+			if (info->pkt->size > sizeof(packet_t)) {
+				if((info->pkt = realloc(info->pkt, info->pkt->size)) == NULL)
+					exit_failure("realloc");
+			}
+		
+		} else 
+			return;
+
+		/* Is there an entire packet in the buffer? */
+		if (evbuffer_get_length(input) >= (info->pkt->size - sizeof(packet_header_t))) {
+
+			n = evbuffer_remove(input, info->pkt->data, info->pkt->size - sizeof(packet_header_t));
+
+			switch (info->pkt->type) {
+			case DECT_PACKET:
+				/* Dump the packet. */
+				printf("[RDECT][%04d] - ", info->pkt->size - sizeof(packet_header_t));
+				for (i=0 ; i<info->pkt->size - sizeof(packet_header_t); i++)
+					printf("%02x ", info->pkt->data[i]);
+				printf("\n");
+
+				handle_dect_packet(info->pkt->data);
+				break;
+			default:
+				handle_client_packet(bev, (client_packet *)info->pkt);
+				break;
+			}
+
+			/* Reset packet struct */
+			free(info->pkt);
+			info->pkt = calloc(sizeof(packet_t), 1);
+
+		} else
+			return;
+	}
+}
+
+
+void handle_dect_packet(unsigned char *buf) {
 
 	int i;
 	RosPrimitiveType primitive = ((recDataType *) buf)->PrimitiveIdentifier;
@@ -632,7 +643,7 @@ static void handle_dect_packet(unsigned char *buf) {
 }
 
 
-static void handle_client_packet(struct bufferevent *bev, client_packet *p) {
+void handle_client_packet(struct bufferevent *bev, client_packet *p) {
 
 	switch (p->type) {
 
@@ -662,6 +673,10 @@ static void handle_client_packet(struct bufferevent *bev, client_packet *p) {
 		break;
 	}
 }
+
+
+
+
 
 
 static void run(void) {
