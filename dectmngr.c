@@ -11,7 +11,7 @@
 #include <stdio.h>
 #include <errno.h>
 #include <stdint.h>
-
+#include <stdbool.h>
 #include <ApiFpProject.h>
 #include <dectUtils.h>
 #include <dectNvsCtl.h>
@@ -26,7 +26,7 @@ struct event_base *base;
 struct info *dect_info;
 struct status_packet status;
 
-char *hotplug_cmd_path = DEFAULT_HOTPLUG_PATH
+char *hotplug_cmd_path = DEFAULT_HOTPLUG_PATH;
 
 void handle_dect_packet(unsigned char *buf);
 void packet_read(struct bufferevent *bev, void *ctx);
@@ -59,41 +59,36 @@ static void exit_failure(const char *format, ...)
 static void call_hotplug(uint8_t action)
 {
 	char *argv[3];
-	/* int pid; */
+	int pid;
 
-	/* pid = fork(); */
-	/* if (pid < 0) */
-	/* 	return task_complete(NULL, -1); */
-
-	/* if (pid > 0) { */
-	/* 	task.pid = pid; */
-	/* 	uloop_process_add(&task); */
-	/* 	return; */
-	/* } */
-	
-	switch (action) {
-	case DECT_INIT :
-		printf("ACTION: dect_init\n");
-		setenv("ACTION", "dect_init", 1);
-		break;
-	case REG_START :
-		printf("ACTION: reg_start\n");
-		setenv("ACTION", "reg_start", 1);
-		break;
-	case REG_STOP :
-		printf("ACTION: reg_stop\n");
-		setenv("ACTION", "reg_stop", 1);
-		break;
-	default:
-		printf("Unknown action\n");
+	pid = fork();
+	if (pid > 0)
 		return;
-	}
 	
-	/* argv[0] = hotplug_cmd_path; */
-	/* argv[1] = "dect"; */
-	/* argv[2] = NULL; */
-	/* execvp(argv[0], argv); */
-	/* exit(127); */
+	if (pid == 0) {
+
+		/* Child process */
+		switch (action) {
+		case DECT_INIT :
+			setenv("ACTION", "dect_init", 1);
+			break;
+		case REG_START :
+			setenv("ACTION", "reg_start", 1);
+			break;
+		case REG_STOP :
+			setenv("ACTION", "reg_stop", 1);
+			break;
+		default:
+			printf("Unknown action\n");
+			return;
+		}
+	
+		argv[0] = hotplug_cmd_path;
+		argv[1] = "dect";
+		argv[2] = NULL;
+		execvp(argv[0], argv);
+		exit(127);
+	}
 }
 
 
@@ -348,21 +343,36 @@ static void ping_handset_stop(struct event *ev, short error, void *arg) {
 
 static void register_handsets_start(void) {
 
-	write_dect3(API_FP_MM_SET_REGISTRATION_MODE_REQ, 1);
+	if (status.dect_init) {
+		call_hotplug(REG_START);
+		write_dect3(API_FP_MM_SET_REGISTRATION_MODE_REQ, 1);
+	}
+}
+
+
+static void init_cfm(void) {
+
+	status.dect_init = true;
+	call_hotplug(DECT_INIT);
 }
 
 
 static void register_handsets_stop(void) {
 
-	status.reg_mode = DISABLED;
-	write_dect3(API_FP_MM_SET_REGISTRATION_MODE_REQ, 0);
+	if (status.dect_init) {
+		status.reg_mode = DISABLED;
+		call_hotplug(REG_STOP);
+		write_dect3(API_FP_MM_SET_REGISTRATION_MODE_REQ, 0);
+	}
 }
 
 
 static void delete_hset(int handset) {  
 
-	printf("delete handset: %d\n", handset);
-	write_dect3(API_FP_MM_DELETE_REGISTRATION_REQ, handset);
+	if (status.dect_init) {
+		printf("delete handset: %d\n", handset);
+		write_dect3(API_FP_MM_DELETE_REGISTRATION_REQ, handset);
+	}
 }
 
 
@@ -671,6 +681,7 @@ void handle_dect_packet(unsigned char *buf) {
 
 	case API_FP_LINUX_INIT_CFM:
 		printf("API_FP_LINUX_INIT_CFM\n");
+		init_cfm();
 		list_handsets();
 		break;
 

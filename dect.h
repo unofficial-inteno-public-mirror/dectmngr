@@ -93,6 +93,7 @@ struct hset {
 
 struct status_packet {
 	PACKET_HEADER
+	uint8_t dect_init;
 	uint8_t reg_mode;
 	struct hset handset[MAX_NR_HSETS];
 };
