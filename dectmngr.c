@@ -26,6 +26,7 @@ struct event_base *base;
 struct info *dect_info;
 struct status_packet status;
 
+char *hotplug_cmd_path = DEFAULT_HOTPLUG_PATH
 
 void handle_dect_packet(unsigned char *buf);
 void packet_read(struct bufferevent *bev, void *ctx);
@@ -52,6 +53,47 @@ static void exit_failure(const char *format, ...)
 	
 	fprintf(stderr, "%s: %s\n", msg, err);
 	exit(EXIT_FAILURE);
+}
+
+
+static void call_hotplug(uint8_t action)
+{
+	char *argv[3];
+	/* int pid; */
+
+	/* pid = fork(); */
+	/* if (pid < 0) */
+	/* 	return task_complete(NULL, -1); */
+
+	/* if (pid > 0) { */
+	/* 	task.pid = pid; */
+	/* 	uloop_process_add(&task); */
+	/* 	return; */
+	/* } */
+	
+	switch (action) {
+	case DECT_INIT :
+		printf("ACTION: dect_init\n");
+		setenv("ACTION", "dect_init", 1);
+		break;
+	case REG_START :
+		printf("ACTION: reg_start\n");
+		setenv("ACTION", "reg_start", 1);
+		break;
+	case REG_STOP :
+		printf("ACTION: reg_stop\n");
+		setenv("ACTION", "reg_stop", 1);
+		break;
+	default:
+		printf("Unknown action\n");
+		return;
+	}
+	
+	/* argv[0] = hotplug_cmd_path; */
+	/* argv[1] = "dect"; */
+	/* argv[2] = NULL; */
+	/* execvp(argv[0], argv); */
+	/* exit(127); */
 }
 
 

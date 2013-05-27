@@ -15,6 +15,8 @@
   #define RSOFFSETOF(type, field) ((size_t)(&((type*)0)->field))
 #endif
 
+#define DEFAULT_HOTPLUG_PATH    "/sbin/hotplug-call"
+
 
 struct info {
 	const char *name;
@@ -30,6 +32,13 @@ typedef struct dect_state {
 enum reg_state {
 	DISABLED,
 	ENABLED,
+};
+
+
+enum dect_action {
+	DECT_INIT,
+	REG_START,
+	REG_STOP,
 };
 
 
