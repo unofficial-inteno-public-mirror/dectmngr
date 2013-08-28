@@ -19,7 +19,6 @@ CFLAGS += -DBOS_OS_LINUXUSER -DBOS_CFG_TIME -DNTR_SUPPORT -DBOS_CFG_SLEEP -DBOS_
 
 DECTD_DIR=$(BUILD_DIR)/bcmkernel-3.4-4.14/bcm963xx/userspace/private/apps/dectd
 BRCM_DIR=$(BUILD_DIR)/bcmkernel-3.4-4.14/bcm963xx
-
 #
 # Set include directories
 #
