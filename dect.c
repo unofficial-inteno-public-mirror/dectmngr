@@ -17,7 +17,8 @@
 #define F_DELETE_HSET  1 << 1
 #define F_PING_HSET    1 << 2
 #define F_GET_STATUS   1 << 3
-#define F_JSON   1 << 4
+#define F_JSON         1 << 4
+#define F_LIST_HSETS   1 << 5
 
 
 
@@ -250,7 +251,7 @@ int main(int argc, char *argv[]) {
 	s = establish_connection();
 
 	/* Parse command line options */
-	while ((c = getopt (argc, argv, "rd:p:sj")) != -1) {
+	while ((c = getopt (argc, argv, "rd:p:sjl")) != -1) {
 		switch (c) {
 		case 'r':
 			flags |= F_ACTIVATE_REG;
@@ -269,6 +270,10 @@ int main(int argc, char *argv[]) {
 
 		case 'j':
 			flags |= F_JSON;
+			break;
+
+		case 'l':
+			flags |= F_LIST_HSETS;
 			break;
 	
 		}
@@ -301,6 +306,12 @@ int main(int argc, char *argv[]) {
 		struct status_packet *p = get_reply(s);
 		status_packet_json(p);
 	}
+
+	if (flags & F_LIST_HSETS) {
+		printf("list handsets\n");
+		send_packet(s, LIST_HANDSETS, 0);
+	}
+
 	
 	return 0;
 }

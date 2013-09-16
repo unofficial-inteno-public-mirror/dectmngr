@@ -50,6 +50,7 @@ enum packet_type {
 	RESPONSE,
 	DECT_PACKET,
 	CLIENT_PACKET,
+	LIST_HANDSETS,
 };
 
 

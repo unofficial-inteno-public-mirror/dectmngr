@@ -721,6 +721,11 @@ void handle_client_packet(struct bufferevent *bev, client_packet *p) {
 		delete_hset(p->data);
 		break;
 
+	case LIST_HANDSETS:
+		printf("LIST_HANDSETS\n");
+		list_handsets();
+		break;
+
 	default:
 		printf("unknown packet\n");
 		break;
