@@ -8,7 +8,7 @@
 #include <sys/stat.h>
 #include <netinet/in.h>
 #include <getopt.h>
-#include <json/json.h>
+#include <json-c/json.h>
 
 #include "dect.h"
 
