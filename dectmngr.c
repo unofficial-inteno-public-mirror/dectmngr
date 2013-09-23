@@ -342,7 +342,7 @@ static void ping_handset_stop(struct event *ev, short error, void *arg) {
 
 
 static void register_handsets_start(void) {
-
+	printf("register_handsets_start\n");
 	if (status.dect_init) {
 		call_hotplug(REG_START);
 		write_dect3(API_FP_MM_SET_REGISTRATION_MODE_REQ, 1);
@@ -358,7 +358,7 @@ static void init_cfm(void) {
 
 
 static void register_handsets_stop(void) {
-
+	printf("register_handsets_stop\n");
 	if (status.dect_init) {
 		status.reg_mode = DISABLED;
 		call_hotplug(REG_STOP);
@@ -689,6 +689,14 @@ void handle_dect_packet(unsigned char *buf) {
 		printf("API_FP_GET_EEPROM_CFM\n");
 		break;
 
+	case API_FP_CC_RELEASE_CFM:
+		printf("API_FP_CC_RELEASE_CFM\n");
+		break;
+
+	case API_FP_CC_SETUP_CFM:
+		printf("API_FP_CC_SETUP_CFM\n");
+		break;
+
 	default:
 		printf("Unknown packet\n");
 		break;
@@ -723,6 +731,7 @@ void handle_client_packet(struct bufferevent *bev, client_packet *p) {
 
 	case LIST_HANDSETS:
 		printf("LIST_HANDSETS\n");
+		init_cfm();
 		list_handsets();
 		break;
 
