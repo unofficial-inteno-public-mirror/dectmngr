@@ -492,6 +492,7 @@ static void ule_service_ind(unsigned char *buf) {
 	/* Response */
 	r->Primitive = API_FP_ULE_SERVICE_RES;
 	r->Status = RSS_SUCCESS;
+	r->PpNumber = m->PpNumber;
 
 	if ((m->Bandwidth == 0) && (m->DownlinkRedundant == 0) && (m->ContentionLatency == 0) && (m->MaxDutyCycle == 0)) {
 		r->UlpFrameLenDown = 0;
