@@ -51,6 +51,8 @@ enum packet_type {
 	DECT_PACKET,
 	CLIENT_PACKET,
 	LIST_HANDSETS,
+	ULE_START,
+	INIT,
 };
 
 

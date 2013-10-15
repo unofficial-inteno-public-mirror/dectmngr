@@ -39,6 +39,48 @@ void ApiBuildInfoElement(ApiInfoElementType **IeBlockPtr,
                          rsuint8 *IeData);
 
 
+
+typedef struct __attribute__((__packed__)) ApiFpUleInitReqType
+{
+	RosPrimitiveType Primitive;
+	rsuint16 MaxUlpDevices;
+	rsuint16 DlBuffers;
+	rsuint8 DlBufferSize;
+	rsuint16 UlBuffers;
+	rsuint8 UlBufferSize;
+} ApiFpUleInitReqType;
+
+
+typedef struct __attribute__((__packed__)) ApiFpUleServiceIndType
+{
+	RosPrimitiveType Primitive;
+	rsuint16 PpNumber;
+	rsuint16 Bandwidth;
+	rsuint8 DownlinkRedundant;
+	rsuint16 ContentionLatency;
+	rsuint8 MaxDutyCycle;
+	rsbool AField;
+	rsbool Bfield_Full;
+	rsbool Bfield_Long;
+	rsbool Bfield_Double;
+} ApiFpUleServiceIndType;
+
+
+typedef struct __attribute__((__packed__)) ApiFpUleServiceResType
+{
+	RosPrimitiveType Primitive;
+	rsuint16 PpNumber;
+	RsStatusType Status;
+	rsuint8 UlpFrameLenDown;
+	rsuint16 DownlinkFrame;
+	rsuint8 DownLinkRedundant;
+	rsuint8 UlpFrameLenUp;
+	rsuint16 UplinkStartFrame;
+       	rsuint16 UplinkEndFrame;
+	rsuint8 Slotsize;
+} ApiFpUleServiceResType;
+
+
 static void exit_failure(const char *format, ...)
 {
 #define BUF_SIZE 500
@@ -158,7 +200,7 @@ static int write_dect5(int header, int arg) {
         *(o_buf + 3) = 0;
 	*(o_buf + 4) = 0;
 
-	_write_dect(o_buf, 3);
+	_write_dect(o_buf, 5);
 }
 
 
@@ -166,6 +208,25 @@ static void list_handsets(void) {
   
 	printf("list_handsets\n");
 	write_dect2(API_FP_MM_GET_REGISTRATION_COUNT_REQ);
+}
+
+
+static void ule_start(void) {
+	
+	ApiFpUleInitReqType *m;
+	
+	if(!(m = (ApiFpUleInitReqType *)calloc(1, sizeof(ApiFpUleInitReqType))))
+		exit_failure("malloc");
+
+	m->Primitive = API_FP_ULE_INIT_REQ;
+	m->MaxUlpDevices = 0xff;
+	m->DlBuffers = 0xff;
+	m->DlBufferSize = 0xff;
+	m->UlBuffers = 0xff;
+	m->UlBufferSize = 0xff;
+
+	printf("ule_start\n");
+	_write_dect(m, sizeof(ApiFpUleInitReqType));
 }
 
 
@@ -410,6 +471,50 @@ static void connect_ind(unsigned char *buf) {
 	
 	if (status.handset[(handset) - 1].pinging == TRUE)
 		status.handset[(handset) - 1].pinging = FALSE;
+}
+
+
+static void ule_service_ind(unsigned char *buf) {
+
+	ApiFpUleServiceResType *r = calloc(1, sizeof(ApiFpUleServiceResType));
+	ApiFpUleServiceIndType *m = (ApiFpUleServiceIndType *) buf;
+
+	printf("PpNumber: %d\n", m->PpNumber);
+	printf("Bandwidth: %d\n", m->Bandwidth);
+	printf("DownlinkRedundant: %d\n", m->DownlinkRedundant);
+	printf("ContentionLatency: %d\n", m->ContentionLatency);
+	printf("MaxDutyCycle: %d\n", m->MaxDutyCycle);
+	printf("AField: %d\n", m->AField);
+	printf("Bfield_Full: %d\n", m->Bfield_Full);
+	printf("Bfield_Long: %d\n", m->Bfield_Long);
+	printf("Bfield_Double: %d\n", m->Bfield_Double);
+
+	/* Response */
+	r->Primitive = API_FP_ULE_SERVICE_RES;
+	r->Status = RSS_SUCCESS;
+
+	if ((m->Bandwidth == 0) && (m->DownlinkRedundant == 0) && (m->ContentionLatency == 0) && (m->MaxDutyCycle == 0)) {
+		r->UlpFrameLenDown = 0;
+		r->DownlinkFrame = 0;
+		r->DownLinkRedundant = 0;
+		r->UlpFrameLenUp = 0;
+		r->UplinkStartFrame = 0;
+		r->UplinkEndFrame = 0;
+		r->Slotsize = 1;
+		
+	} else {
+		r->UlpFrameLenDown = m->MaxDutyCycle;
+		r->DownlinkFrame = (rsuint16) (m->PpNumber * 2);
+		r->DownLinkRedundant = 1;
+		r->UlpFrameLenUp = 8;
+		r->UplinkStartFrame = 128;
+		r->UplinkEndFrame = 255;
+		r->Slotsize = 1;
+	}
+	
+	printf("API_FP_ULE_SERVICE_RES\n");
+	_write_dect((unsigned char *)r, sizeof(ApiFpUleServiceResType));
+	free(r);
 }
 
 
@@ -695,8 +800,42 @@ void handle_dect_packet(unsigned char *buf) {
 
 	case API_FP_CC_SETUP_CFM:
 		printf("API_FP_CC_SETUP_CFM\n");
+ 		break;
+
+	case API_FP_ULE_SERVICE_IND:
+		printf("API_FP_ULE_SERVICE_IND\n");
+		ule_service_ind(buf);
 		break;
 
+	case API_FP_ULE_INIT_CFM:
+		printf("API_FP_ULE_INIT_CFM\n");
+		break;
+
+	case API_FP_ULE_DATA_IND:
+		printf("API_FP_ULE_DATA_IND\n");
+		break;
+
+	case API_FP_ULE_DTR_IND:
+		printf("API_FP_ULE_DTR_IND\n");
+		break;
+
+	case API_FP_ULE_DATA_REJECT_IND:
+		printf("API_FP_ULE_DTR_IND:\n");
+		break;
+
+	case API_FP_ULE_GET_REGISTRATION_COUNT_CFM:
+		printf("API_FP_ULE_GET_REGISTRATION_COUNT_CFM\n");
+		break;
+
+	case API_FP_ULE_GET_DEVICE_IPUI_CFM:
+		printf("API_FP_ULE_GET_DEVICE_IPUI_CFM\n");
+		break;
+
+	case API_FP_ULE_ABORT_DATA_CFM:
+		printf("API_FP_ULE_ABORT_DATA_CFM\n");
+		break;
+
+		
 	default:
 		printf("Unknown packet\n");
 		break;
@@ -734,6 +873,17 @@ void handle_client_packet(struct bufferevent *bev, client_packet *p) {
 		init_cfm();
 		list_handsets();
 		break;
+
+	case ULE_START:
+		printf("ULE_START\n");
+		ule_start();
+		break;
+
+	case INIT:
+		printf("INIT\n");
+		init_cfm();
+		break;
+
 
 	default:
 		printf("unknown packet\n");

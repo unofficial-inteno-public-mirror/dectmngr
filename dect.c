@@ -19,6 +19,8 @@
 #define F_GET_STATUS   1 << 3
 #define F_JSON         1 << 4
 #define F_LIST_HSETS   1 << 5
+#define F_ULE          1 << 6
+#define F_INIT         1 << 7
 
 
 
@@ -251,7 +253,7 @@ int main(int argc, char *argv[]) {
 	s = establish_connection();
 
 	/* Parse command line options */
-	while ((c = getopt (argc, argv, "rd:p:sjl")) != -1) {
+	while ((c = getopt (argc, argv, "rd:p:sjlui")) != -1) {
 		switch (c) {
 		case 'r':
 			flags |= F_ACTIVATE_REG;
@@ -274,6 +276,14 @@ int main(int argc, char *argv[]) {
 
 		case 'l':
 			flags |= F_LIST_HSETS;
+			break;
+
+		case 'u':
+			flags |= F_ULE;
+			break;
+
+		case 'i':
+			flags |= F_INIT;
 			break;
 	
 		}
@@ -310,6 +320,17 @@ int main(int argc, char *argv[]) {
 	if (flags & F_LIST_HSETS) {
 		printf("list handsets\n");
 		send_packet(s, LIST_HANDSETS, 0);
+	}
+
+	if (flags & F_ULE) {
+		printf("init\n");
+		send_packet(s, ULE_START, 0);
+	}
+
+
+	if (flags & F_INIT) {
+		printf("init\n");
+		send_packet(s, INIT, 0);
 	}
 
 	
