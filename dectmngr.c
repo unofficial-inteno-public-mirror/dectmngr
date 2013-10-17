@@ -38,7 +38,7 @@ void ApiBuildInfoElement(ApiInfoElementType **IeBlockPtr,
                          rsuint8 IeLength,
                          rsuint8 *IeData);
 
-
+int switch_state_on = 1;
 
 typedef struct __attribute__((__packed__)) ApiFpUleInitReqType
 {
@@ -79,6 +79,17 @@ typedef struct __attribute__((__packed__)) ApiFpUleServiceResType
        	rsuint16 UplinkEndFrame;
 	rsuint8 Slotsize;
 } ApiFpUleServiceResType;
+
+
+
+typedef struct __attribute__((__packed__)) ApiFpUleDataReqType
+{
+	RosPrimitiveType Primitive;
+	rsuint16 PpNumber;
+	rsuint8 DlcCtrl;
+	rsuint8 Length;
+	rsuint8 Data[19];
+} ApiFpUleDataReqType;
 
 
 static void exit_failure(const char *format, ...)
@@ -219,11 +230,17 @@ static void ule_start(void) {
 		exit_failure("malloc");
 
 	m->Primitive = API_FP_ULE_INIT_REQ;
-	m->MaxUlpDevices = 0xff;
-	m->DlBuffers = 0xff;
-	m->DlBufferSize = 0xff;
-	m->UlBuffers = 0xff;
-	m->UlBufferSize = 0xff;
+	/* m->MaxUlpDevices = 0xff; */
+	/* m->DlBuffers = 0xff; */
+	/* m->DlBufferSize = 0xff; */
+	/* m->UlBuffers = 0xff; */
+	/* m->UlBufferSize = 0xff; */
+
+	m->MaxUlpDevices = 0x40;
+	m->DlBuffers = 0x40;
+	m->DlBufferSize = 0x1d;
+	m->UlBuffers = 0x40;
+	m->UlBufferSize = 0x1d;
 
 	printf("ule_start\n");
 	_write_dect(m, sizeof(ApiFpUleInitReqType));
@@ -473,6 +490,36 @@ static void connect_ind(unsigned char *buf) {
 		status.handset[(handset) - 1].pinging = FALSE;
 }
 
+static void ule_data_req(unsigned char *buf) {
+	ApiFpUleDataReqType *r = calloc(1, sizeof(ApiFpUleDataReqType));
+	
+	rsuint8 switch_on[20] =  { 0x31,0x45,0x0,0x1,0x1,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0, 0x0 };
+
+	rsuint8 switch_off[20] = { 0x31,0x45,0x0,0x1,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0, 0x0 };
+
+	r->Primitive = API_FP_ULE_DATA_REQ;
+	r->PpNumber = 7;
+	r->DlcCtrl = (2 << 6) | 0x01;
+	r->Length = 20;
+	
+
+	if (switch_state_on) {
+		printf("switch off\n");
+		memcpy(r->Data, switch_off, 20);
+		switch_state_on = 0;
+	} else {
+		printf("switch on\n");
+		memcpy(r->Data, switch_on, 20);
+		switch_state_on = 1;
+	}
+	
+	printf("API_FP_ULE_DATA_REQ\n");
+	_write_dect((unsigned char *)r, sizeof(ApiFpUleDataReqType));
+	free(r);
+	
+
+	
+}
 
 static void ule_service_ind(unsigned char *buf) {
 
@@ -814,6 +861,7 @@ void handle_dect_packet(unsigned char *buf) {
 
 	case API_FP_ULE_DATA_IND:
 		printf("API_FP_ULE_DATA_IND\n");
+		ule_data_req(buf);
 		break;
 
 	case API_FP_ULE_DTR_IND:
@@ -821,7 +869,7 @@ void handle_dect_packet(unsigned char *buf) {
 		break;
 
 	case API_FP_ULE_DATA_REJECT_IND:
-		printf("API_FP_ULE_DTR_IND:\n");
+		printf("API_FP_ULE_REJECT_IND\n");
 		break;
 
 	case API_FP_ULE_GET_REGISTRATION_COUNT_CFM:
