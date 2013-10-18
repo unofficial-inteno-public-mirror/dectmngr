@@ -28,6 +28,13 @@ struct status_packet status;
 
 char *hotplug_cmd_path = DEFAULT_HOTPLUG_PATH;
 
+#define ULP_DLC_CTRL_UNACKNOWLEDGED  0x01
+#define ULP_DLC_CTRL_ACKNOWLEDGED    0x02
+
+#define EARLY_BIT        (1 << 6)
+#define PAGING_ON        (1 << 7)
+
+
 void handle_dect_packet(unsigned char *buf);
 void packet_read(struct bufferevent *bev, void *ctx);
 void handle_client_packet(struct bufferevent *bev, client_packet *p);
@@ -90,6 +97,26 @@ typedef struct __attribute__((__packed__)) ApiFpUleDataReqType
 	rsuint8 Length;
 	rsuint8 Data[19];
 } ApiFpUleDataReqType;
+
+
+typedef struct __attribute__((__packed__)) ApiFpUleDataIndType
+{
+	RosPrimitiveType Primitive;
+	rsuint16 PpNumber;
+	rsuint8 Length;
+	rsuint8 DataType;
+	rsuint8 Sensor;
+	rsuint16 Counter;
+	rsuint8 State;
+	rsuint8 Power_h;
+	rsuint16 Power_l;
+	rsuint16 RMSVoltage;
+	rsuint16 RMSCurrent;
+	rsuint32 EnergyFwd;
+	rsuint32 EnergyRev;
+} ApiFpUleDataIndType;
+
+
 
 
 static void exit_failure(const char *format, ...)
@@ -490,27 +517,28 @@ static void connect_ind(unsigned char *buf) {
 		status.handset[(handset) - 1].pinging = FALSE;
 }
 
-static void ule_data_req(unsigned char *buf) {
+static void ule_data_req(int switch_on) {
 	ApiFpUleDataReqType *r = calloc(1, sizeof(ApiFpUleDataReqType));
 	
-	rsuint8 switch_on[20] =  { 0x31,0x45,0x0,0x1,0x1,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0, 0x0 };
+	rsuint8 switch_on_p[19] =  { 0x31,0x45,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0 };
 
-	rsuint8 switch_off[20] = { 0x31,0x45,0x0,0x1,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0, 0x0 };
+	//rsuint8 switch_on_p[19] =  { 0x31,0x45,0x1,0x1,0x1,0x1,0x1,0x1,0x1,0x1,0x1,0x1,0x1,0x1,0x1,0x1,0x1,0x1,0x1 };
+
+	rsuint8 switch_off_p[19] = { 0x31,0x45,0x0,0x1,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0 };
 
 	r->Primitive = API_FP_ULE_DATA_REQ;
 	r->PpNumber = 7;
-	r->DlcCtrl = (2 << 6) | 0x01;
+	r->DlcCtrl = PAGING_ON | ULP_DLC_CTRL_ACKNOWLEDGED;
 	r->Length = 20;
 	
-
-	if (switch_state_on) {
-		printf("switch off\n");
-		memcpy(r->Data, switch_off, 20);
-		switch_state_on = 0;
-	} else {
+	if (switch_on) {
 		printf("switch on\n");
-		memcpy(r->Data, switch_on, 20);
+		memcpy(r->Data, switch_on_p, 19);
 		switch_state_on = 1;
+	} else {
+		printf("switch off\n");
+		memcpy(r->Data, switch_off_p, 19);
+		switch_state_on = 0;
 	}
 	
 	printf("API_FP_ULE_DATA_REQ\n");
@@ -520,6 +548,25 @@ static void ule_data_req(unsigned char *buf) {
 
 	
 }
+
+
+static void ule_data_ind(unsigned char *buf) {
+
+	ApiFpUleDataIndType *m = (ApiFpUleDataIndType *) buf;
+	
+	printf("DataType: 0x%2.2x\n", m->DataType);
+	printf("Sensor: 0x%2.x\n", m->Sensor);
+	printf("Counter: %d\n", m->Counter);
+	printf("State: %d\n", m->State);
+	printf("Power_h: %d\n", m->Power_h);
+	printf("Power_l: %d\n", m->Power_l);
+	printf("RMSVoltage: %d\n", m->RMSVoltage);
+	printf("RMSCurrent: %d\n", m->RMSCurrent);
+	printf("EnergyFwd: %d\n", m->EnergyFwd);
+	printf("EnergyRev: %d\n\n", m->EnergyRev);
+	
+}
+
 
 static void ule_service_ind(unsigned char *buf) {
 
@@ -861,7 +908,7 @@ void handle_dect_packet(unsigned char *buf) {
 
 	case API_FP_ULE_DATA_IND:
 		printf("API_FP_ULE_DATA_IND\n");
-		ule_data_req(buf);
+		ule_data_ind(buf);
 		break;
 
 	case API_FP_ULE_DTR_IND:
@@ -910,6 +957,11 @@ void handle_client_packet(struct bufferevent *bev, client_packet *p) {
 	case PING_HSET:
 		printf("PING_HSET %d\n", p->data);
 		ping_handset(p->data);
+		break;
+
+	case ZWITCH:
+		printf("SWITCH %d\n", p->data);
+		ule_data_req(p->data);
 		break;
 
 	case DELETE_HSET:

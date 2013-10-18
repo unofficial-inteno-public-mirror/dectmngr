@@ -21,6 +21,7 @@
 #define F_LIST_HSETS   1 << 5
 #define F_ULE          1 << 6
 #define F_INIT         1 << 7
+#define F_ZWITCH       1 << 8
 
 
 
@@ -46,7 +47,7 @@ static void status_packet(struct status_packet *p) {
 	int i, j;
 
 	for (i = 0; i < MAX_NR_HSETS; i++) {
-		printf("hset: %d", i + 1);
+		printf("hset: %2d", i + 1);
 
 		if (p->handset[i].registered == TRUE) {
 			printf("\tregistered\t");
@@ -247,13 +248,13 @@ int establish_connection(void) {
 
 int main(int argc, char *argv[]) {
 
-	int s, c, handset = 0;
+	int s, c, handset = 0, switch_on = 0;
 	int flags = 0;
 
 	s = establish_connection();
 
 	/* Parse command line options */
-	while ((c = getopt (argc, argv, "rd:p:sjlui")) != -1) {
+	while ((c = getopt (argc, argv, "rd:p:sjluiz:")) != -1) {
 		switch (c) {
 		case 'r':
 			flags |= F_ACTIVATE_REG;
@@ -265,6 +266,10 @@ int main(int argc, char *argv[]) {
 		case 'p':
 			flags |= F_PING_HSET;
 			handset = atoi(optarg);
+			break;
+		case 'z':
+			flags |= F_ZWITCH;
+			switch_on = atoi(optarg);
 			break;
 		case 's':
 			flags |= F_GET_STATUS;
@@ -302,6 +307,11 @@ int main(int argc, char *argv[]) {
 	if (flags & F_PING_HSET) {
 		printf("ping hset %d\n", handset);
 		send_packet(s, PING_HSET, handset);
+	}
+
+	if (flags & F_ZWITCH) {
+		printf("switch %d\n", switch_on);
+		send_packet(s, ZWITCH, switch_on);
 	}
 
 	if (flags & F_GET_STATUS) {

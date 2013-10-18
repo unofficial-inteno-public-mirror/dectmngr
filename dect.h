@@ -5,7 +5,7 @@
 #define MAX_MAIL_SIZE 4098
 #define MAX_LISTENERS 10
 #define PKT_DATA_SIZE 100
-#define MAX_NR_HSETS 6
+#define MAX_NR_HSETS 20
 
 #define MAX(a,b) ((a) > (b) ? (a) : (b))
 
@@ -53,6 +53,7 @@ enum packet_type {
 	LIST_HANDSETS,
 	ULE_START,
 	INIT,
+	ZWITCH,
 };
 
 
