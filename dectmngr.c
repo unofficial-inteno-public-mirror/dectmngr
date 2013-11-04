@@ -12,9 +12,24 @@
 #include <errno.h>
 #include <stdint.h>
 #include <stdbool.h>
-#include <ApiFpProject.h>
-#include <dectUtils.h>
-#include <dectNvsCtl.h>
+//#include <ApiFpProject.h>
+//#include <dectUtils.h>
+//
+/* #include <Api/RsStandard.h> */
+/* #include <Api/Types/ApiTypes.h> */
+
+#include <Api/CodecList/ApiCodecList.h>
+#include <Api/FpCc/ApiFpCc.h>
+//#include <Api/FpFwu/ApiFpFwu.h>
+#include <Api/FpMm/ApiFpMm.h>
+#include <Api/FpNoEmission/ApiFpNoEmission.h>
+#include <Api/GenEveNot/ApiGenEveNot.h>
+#include <Api/Las/ApiLas.h>
+#include <Api/Linux/ApiLinux.h>
+//#include <Api/Project/ApiProject.h>
+
+
+
 #include <json/json.h>
 
 #include "dect.h"
@@ -47,74 +62,74 @@ void ApiBuildInfoElement(ApiInfoElementType **IeBlockPtr,
 
 int switch_state_on = 1;
 
-typedef struct __attribute__((__packed__)) ApiFpUleInitReqType
-{
-	RosPrimitiveType Primitive;
-	rsuint16 MaxUlpDevices;
-	rsuint16 DlBuffers;
-	rsuint8 DlBufferSize;
-	rsuint16 UlBuffers;
-	rsuint8 UlBufferSize;
-} ApiFpUleInitReqType;
+/* typedef struct __attribute__((__packed__)) ApiFpUleInitReqType */
+/* { */
+/* 	RosPrimitiveType Primitive; */
+/* 	rsuint16 MaxUlpDevices; */
+/* 	rsuint16 DlBuffers; */
+/* 	rsuint8 DlBufferSize; */
+/* 	rsuint16 UlBuffers; */
+/* 	rsuint8 UlBufferSize; */
+/* } ApiFpUleInitReqType; */
 
 
-typedef struct __attribute__((__packed__)) ApiFpUleServiceIndType
-{
-	RosPrimitiveType Primitive;
-	rsuint16 PpNumber;
-	rsuint16 Bandwidth;
-	rsuint8 DownlinkRedundant;
-	rsuint16 ContentionLatency;
-	rsuint8 MaxDutyCycle;
-	rsbool AField;
-	rsbool Bfield_Full;
-	rsbool Bfield_Long;
-	rsbool Bfield_Double;
-} ApiFpUleServiceIndType;
+/* typedef struct __attribute__((__packed__)) ApiFpUleServiceIndType */
+/* { */
+/* 	RosPrimitiveType Primitive; */
+/* 	rsuint16 PpNumber; */
+/* 	rsuint16 Bandwidth; */
+/* 	rsuint8 DownlinkRedundant; */
+/* 	rsuint16 ContentionLatency; */
+/* 	rsuint8 MaxDutyCycle; */
+/* 	rsbool AField; */
+/* 	rsbool Bfield_Full; */
+/* 	rsbool Bfield_Long; */
+/* 	rsbool Bfield_Double; */
+/* } ApiFpUleServiceIndType; */
 
 
-typedef struct __attribute__((__packed__)) ApiFpUleServiceResType
-{
-	RosPrimitiveType Primitive;
-	rsuint16 PpNumber;
-	RsStatusType Status;
-	rsuint8 UlpFrameLenDown;
-	rsuint16 DownlinkFrame;
-	rsuint8 DownLinkRedundant;
-	rsuint8 UlpFrameLenUp;
-	rsuint16 UplinkStartFrame;
-       	rsuint16 UplinkEndFrame;
-	rsuint8 Slotsize;
-} ApiFpUleServiceResType;
+/* typedef struct __attribute__((__packed__)) ApiFpUleServiceResType */
+/* { */
+/* 	RosPrimitiveType Primitive; */
+/* 	rsuint16 PpNumber; */
+/* 	RsStatusType Status; */
+/* 	rsuint8 UlpFrameLenDown; */
+/* 	rsuint16 DownlinkFrame; */
+/* 	rsuint8 DownLinkRedundant; */
+/* 	rsuint8 UlpFrameLenUp; */
+/* 	rsuint16 UplinkStartFrame; */
+/*        	rsuint16 UplinkEndFrame; */
+/* 	rsuint8 Slotsize; */
+/* } ApiFpUleServiceResType; */
 
 
 
-typedef struct __attribute__((__packed__)) ApiFpUleDataReqType
-{
-	RosPrimitiveType Primitive;
-	rsuint16 PpNumber;
-	rsuint8 DlcCtrl;
-	rsuint8 Length;
-	rsuint8 Data[19];
-} ApiFpUleDataReqType;
+/* typedef struct __attribute__((__packed__)) ApiFpUleDataReqType */
+/* { */
+/* 	RosPrimitiveType Primitive; */
+/* 	rsuint16 PpNumber; */
+/* 	rsuint8 DlcCtrl; */
+/* 	rsuint8 Length; */
+/* 	rsuint8 Data[19]; */
+/* } ApiFpUleDataReqType; */
 
 
-typedef struct __attribute__((__packed__)) ApiFpUleDataIndType
-{
-	RosPrimitiveType Primitive;
-	rsuint16 PpNumber;
-	rsuint8 Length;
-	rsuint8 DataType;
-	rsuint8 Sensor;
-	rsuint16 Counter;
-	rsuint8 State;
-	rsuint8 Power_h;
-	rsuint16 Power_l;
-	rsuint16 RMSVoltage;
-	rsuint16 RMSCurrent;
-	rsuint32 EnergyFwd;
-	rsuint32 EnergyRev;
-} ApiFpUleDataIndType;
+/* typedef struct __attribute__((__packed__)) ApiFpUleDataIndType */
+/* { */
+/* 	RosPrimitiveType Primitive; */
+/* 	rsuint16 PpNumber; */
+/* 	rsuint8 Length; */
+/* 	rsuint8 DataType; */
+/* 	rsuint8 Sensor; */
+/* 	rsuint16 Counter; */
+/* 	rsuint8 State; */
+/* 	rsuint8 Power_h; */
+/* 	rsuint16 Power_l; */
+/* 	rsuint16 RMSVoltage; */
+/* 	rsuint16 RMSCurrent; */
+/* 	rsuint32 EnergyFwd; */
+/* 	rsuint32 EnergyRev; */
+/* } ApiFpUleDataIndType; */
 
 
 
@@ -249,29 +264,29 @@ static void list_handsets(void) {
 }
 
 
-static void ule_start(void) {
+/* static void ule_start(void) { */
 	
-	ApiFpUleInitReqType *m;
+/* 	ApiFpUleInitReqType *m; */
 	
-	if(!(m = (ApiFpUleInitReqType *)calloc(1, sizeof(ApiFpUleInitReqType))))
-		exit_failure("malloc");
+/* 	if(!(m = (ApiFpUleInitReqType *)calloc(1, sizeof(ApiFpUleInitReqType)))) */
+/* 		exit_failure("malloc"); */
 
-	m->Primitive = API_FP_ULE_INIT_REQ;
-	/* m->MaxUlpDevices = 0xff; */
-	/* m->DlBuffers = 0xff; */
-	/* m->DlBufferSize = 0xff; */
-	/* m->UlBuffers = 0xff; */
-	/* m->UlBufferSize = 0xff; */
+/* 	m->Primitive = API_FP_ULE_INIT_REQ; */
+/* 	/\* m->MaxUlpDevices = 0xff; *\/ */
+/* 	/\* m->DlBuffers = 0xff; *\/ */
+/* 	/\* m->DlBufferSize = 0xff; *\/ */
+/* 	/\* m->UlBuffers = 0xff; *\/ */
+/* 	/\* m->UlBufferSize = 0xff; *\/ */
 
-	m->MaxUlpDevices = 0x40;
-	m->DlBuffers = 0x40;
-	m->DlBufferSize = 0x1d;
-	m->UlBuffers = 0x40;
-	m->UlBufferSize = 0x1d;
+/* 	m->MaxUlpDevices = 0x40; */
+/* 	m->DlBuffers = 0x40; */
+/* 	m->DlBufferSize = 0x1d; */
+/* 	m->UlBuffers = 0x40; */
+/* 	m->UlBufferSize = 0x1d; */
 
-	printf("ule_start\n");
-	_write_dect(m, sizeof(ApiFpUleInitReqType));
-}
+/* 	printf("ule_start\n"); */
+/* 	_write_dect(m, sizeof(ApiFpUleInitReqType)); */
+/* } */
 
 
 void ApiFreeInfoElement(ApiInfoElementType **IeBlockPtr) {
@@ -378,10 +393,10 @@ static void ping_handset_start(int handset) {
 
 			/* Fillout mail contents */
 			((ApiFpCcSetupReqType *) pingMailPtr)->Primitive    = API_FP_CC_SETUP_REQ;
-			((ApiFpCcSetupReqType *) pingMailPtr)->CallReference.HandsetId = handset;
+			((ApiFpCcSetupReqType *) pingMailPtr)->TerminalId = handset;
 			((ApiFpCcSetupReqType *) pingMailPtr)->BasicService = API_BASIC_SPEECH;
 			((ApiFpCcSetupReqType *) pingMailPtr)->CallClass    = API_CC_NORMAL;
-			((ApiFpCcSetupReqType *) pingMailPtr)->SourceId     = 0; /* 0 is the base station id */
+			((ApiFpCcSetupReqType *) pingMailPtr)->AudioId.SourceTerminalId     = 0; /* 0 is the base station id */
 			((ApiFpCcSetupReqType *) pingMailPtr)->Signal       = API_CC_SIGNAL_ALERT_ON_PATTERN_2;
 
 			/* Copy over infoElements */
@@ -420,15 +435,15 @@ static void registration_count_cfm(unsigned char *mail) {
 
 		printf("Max Number of Handset allowed: %d\n", ((ApiFpMmGetRegistrationCountCfmType*) mail)->MaxNoHandsets);
 		 
-		for (i = 0 ; i < (((ApiFpMmGetRegistrationCountCfmType*) mail)->HandsetIdLength ) ; i++ ) {
+		for (i = 0 ; i < (((ApiFpMmGetRegistrationCountCfmType*) mail)->TerminalIdCount ) ; i++ ) {
 			 
-			handset = ((ApiFpMmGetRegistrationCountCfmType*) mail)->HandsetId[i];
+			handset = ((ApiFpMmGetRegistrationCountCfmType*) mail)->TerminalId[i];
 			status.handset[handset - 1].registered = TRUE;
 		}
 		 
 		/* Get the ipui of the first handset. For some damn
 		   reason we can't to all of them at once. */
-		handset = ((ApiFpMmGetRegistrationCountCfmType*) mail)->HandsetId[0];
+		handset = ((ApiFpMmGetRegistrationCountCfmType*) mail)->TerminalId[0];
 		if (handset > 0)
 			get_handset_ipui(handset);
 	}
@@ -483,10 +498,21 @@ static void delete_hset(int handset) {
 
 static void present_ind(unsigned char *mail) {  
 
-	int handset;
-	
-	handset = ((ApiFpMmHandsetPresentIndType*) mail)->HandsetId;
+	ApiTerminalIdType handset;
+	int length;
+	ApiFpMmHandsetPresentIndType *t = NULL;
+
+	handset = ((ApiFpMmHandsetPresentIndType*) mail)->TerminalId;
+	length = ((ApiFpMmHandsetPresentIndType*) mail)->InfoElementLength;
 	printf("INPUT: API_FP_MM_HANDSET_PRESENT_IND from handset (%d)\n", handset);
+	printf("length: %d\n", length);
+	
+	t = (ApiLinuxInitReqType*) malloc(sizeof(ApiFpMmHandsetPresentIndType));
+        t->Primitive = API_FP_MM_HANDSET_PRESENT_IND;
+        t->TerminalId = 1;
+	t->InfoElementLength = 46;
+
+        _write_dect(t, sizeof(ApiFpMmHandsetPresentIndType));
 
 	status.handset[handset - 1].present = TRUE;
 }
@@ -496,7 +522,7 @@ static void delete_registration_cfm(unsigned char *mail) {
 
 	int handset;
 
-	handset = ((ApiFpMmDeleteRegistrationCfmType*) mail)->HandsetId;
+	handset = ((ApiFpMmDeleteRegistrationCfmType*) mail)->TerminalId;
 	
 	printf("deleted handset: %d\n", handset);
 	status.handset[handset - 1].registered = FALSE;
@@ -506,111 +532,111 @@ static void delete_registration_cfm(unsigned char *mail) {
 
 static void connect_ind(unsigned char *buf) {
 
-	ApiHandsetIdType handset;
+	int handset;
 	struct brcm_pvt *p;
 	struct brcm_subchannel *sub;
 	unsigned char o_buf[5];
 
-	handset = ((ApiFpCcConnectCfmType*) buf)->CallReference.HandsetId;
+	/* handset = ((ApiFpCcConnectCfmType*) buf)->CallReference.HandsetId; */
 	
 	if (status.handset[(handset) - 1].pinging == TRUE)
 		status.handset[(handset) - 1].pinging = FALSE;
 }
 
-static void ule_data_req(int switch_on) {
-	ApiFpUleDataReqType *r = calloc(1, sizeof(ApiFpUleDataReqType));
+/* static void ule_data_req(int switch_on) { */
+/* 	ApiFpUleDataReqType *r = calloc(1, sizeof(ApiFpUleDataReqType)); */
 	
-	rsuint8 switch_on_p[19] =  { 0x31,0x45,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0 };
+/* 	rsuint8 switch_on_p[19] =  { 0x31,0x45,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0 }; */
 
-	//rsuint8 switch_on_p[19] =  { 0x31,0x45,0x1,0x1,0x1,0x1,0x1,0x1,0x1,0x1,0x1,0x1,0x1,0x1,0x1,0x1,0x1,0x1,0x1 };
+/* 	//rsuint8 switch_on_p[19] =  { 0x31,0x45,0x1,0x1,0x1,0x1,0x1,0x1,0x1,0x1,0x1,0x1,0x1,0x1,0x1,0x1,0x1,0x1,0x1 }; */
 
-	rsuint8 switch_off_p[19] = { 0x31,0x45,0x0,0x1,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0 };
+/* 	rsuint8 switch_off_p[19] = { 0x31,0x45,0x0,0x1,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0 }; */
 
-	r->Primitive = API_FP_ULE_DATA_REQ;
-	r->PpNumber = 7;
-	r->DlcCtrl = PAGING_ON | ULP_DLC_CTRL_ACKNOWLEDGED;
-	r->Length = 20;
+/* 	r->Primitive = API_FP_ULE_DATA_REQ; */
+/* 	r->PpNumber = 7; */
+/* 	r->DlcCtrl = PAGING_ON | ULP_DLC_CTRL_ACKNOWLEDGED; */
+/* 	r->Length = 20; */
 	
-	if (switch_on) {
-		printf("switch on\n");
-		memcpy(r->Data, switch_on_p, 19);
-		switch_state_on = 1;
-	} else {
-		printf("switch off\n");
-		memcpy(r->Data, switch_off_p, 19);
-		switch_state_on = 0;
-	}
+/* 	if (switch_on) { */
+/* 		printf("switch on\n"); */
+/* 		memcpy(r->Data, switch_on_p, 19); */
+/* 		switch_state_on = 1; */
+/* 	} else { */
+/* 		printf("switch off\n"); */
+/* 		memcpy(r->Data, switch_off_p, 19); */
+/* 		switch_state_on = 0; */
+/* 	} */
 	
-	printf("API_FP_ULE_DATA_REQ\n");
-	_write_dect((unsigned char *)r, sizeof(ApiFpUleDataReqType));
-	free(r);
+/* 	printf("API_FP_ULE_DATA_REQ\n"); */
+/* 	_write_dect((unsigned char *)r, sizeof(ApiFpUleDataReqType)); */
+/* 	free(r); */
 	
 
 	
-}
+/* } */
 
 
-static void ule_data_ind(unsigned char *buf) {
+/* static void ule_data_ind(unsigned char *buf) { */
 
-	ApiFpUleDataIndType *m = (ApiFpUleDataIndType *) buf;
+/* 	ApiFpUleDataIndType *m = (ApiFpUleDataIndType *) buf; */
 	
-	printf("DataType: 0x%2.2x\n", m->DataType);
-	printf("Sensor: 0x%2.x\n", m->Sensor);
-	printf("Counter: %d\n", m->Counter);
-	printf("State: %d\n", m->State);
-	printf("Power_h: %d\n", m->Power_h);
-	printf("Power_l: %d\n", m->Power_l);
-	printf("RMSVoltage: %d\n", m->RMSVoltage);
-	printf("RMSCurrent: %d\n", m->RMSCurrent);
-	printf("EnergyFwd: %d\n", m->EnergyFwd);
-	printf("EnergyRev: %d\n\n", m->EnergyRev);
+/* 	printf("DataType: 0x%2.2x\n", m->DataType); */
+/* 	printf("Sensor: 0x%2.x\n", m->Sensor); */
+/* 	printf("Counter: %d\n", m->Counter); */
+/* 	printf("State: %d\n", m->State); */
+/* 	printf("Power_h: %d\n", m->Power_h); */
+/* 	printf("Power_l: %d\n", m->Power_l); */
+/* 	printf("RMSVoltage: %d\n", m->RMSVoltage); */
+/* 	printf("RMSCurrent: %d\n", m->RMSCurrent); */
+/* 	printf("EnergyFwd: %d\n", m->EnergyFwd); */
+/* 	printf("EnergyRev: %d\n\n", m->EnergyRev); */
 	
-}
+/* } */
 
 
-static void ule_service_ind(unsigned char *buf) {
+/* static void ule_service_ind(unsigned char *buf) { */
 
-	ApiFpUleServiceResType *r = calloc(1, sizeof(ApiFpUleServiceResType));
-	ApiFpUleServiceIndType *m = (ApiFpUleServiceIndType *) buf;
+/* 	ApiFpUleServiceResType *r = calloc(1, sizeof(ApiFpUleServiceResType)); */
+/* 	ApiFpUleServiceIndType *m = (ApiFpUleServiceIndType *) buf; */
 
-	printf("PpNumber: %d\n", m->PpNumber);
-	printf("Bandwidth: %d\n", m->Bandwidth);
-	printf("DownlinkRedundant: %d\n", m->DownlinkRedundant);
-	printf("ContentionLatency: %d\n", m->ContentionLatency);
-	printf("MaxDutyCycle: %d\n", m->MaxDutyCycle);
-	printf("AField: %d\n", m->AField);
-	printf("Bfield_Full: %d\n", m->Bfield_Full);
-	printf("Bfield_Long: %d\n", m->Bfield_Long);
-	printf("Bfield_Double: %d\n", m->Bfield_Double);
+/* 	printf("PpNumber: %d\n", m->PpNumber); */
+/* 	printf("Bandwidth: %d\n", m->Bandwidth); */
+/* 	printf("DownlinkRedundant: %d\n", m->DownlinkRedundant); */
+/* 	printf("ContentionLatency: %d\n", m->ContentionLatency); */
+/* 	printf("MaxDutyCycle: %d\n", m->MaxDutyCycle); */
+/* 	printf("AField: %d\n", m->AField); */
+/* 	printf("Bfield_Full: %d\n", m->Bfield_Full); */
+/* 	printf("Bfield_Long: %d\n", m->Bfield_Long); */
+/* 	printf("Bfield_Double: %d\n", m->Bfield_Double); */
 
-	/* Response */
-	r->Primitive = API_FP_ULE_SERVICE_RES;
-	r->Status = RSS_SUCCESS;
-	r->PpNumber = m->PpNumber;
+/* 	/\* Response *\/ */
+/* 	r->Primitive = API_FP_ULE_SERVICE_RES; */
+/* 	r->Status = RSS_SUCCESS; */
+/* 	r->PpNumber = m->PpNumber; */
 
-	if ((m->Bandwidth == 0) && (m->DownlinkRedundant == 0) && (m->ContentionLatency == 0) && (m->MaxDutyCycle == 0)) {
-		r->UlpFrameLenDown = 0;
-		r->DownlinkFrame = 0;
-		r->DownLinkRedundant = 0;
-		r->UlpFrameLenUp = 0;
-		r->UplinkStartFrame = 0;
-		r->UplinkEndFrame = 0;
-		r->Slotsize = 1;
+/* 	if ((m->Bandwidth == 0) && (m->DownlinkRedundant == 0) && (m->ContentionLatency == 0) && (m->MaxDutyCycle == 0)) { */
+/* 		r->UlpFrameLenDown = 0; */
+/* 		r->DownlinkFrame = 0; */
+/* 		r->DownLinkRedundant = 0; */
+/* 		r->UlpFrameLenUp = 0; */
+/* 		r->UplinkStartFrame = 0; */
+/* 		r->UplinkEndFrame = 0; */
+/* 		r->Slotsize = 1; */
 		
-	} else {
-		r->UlpFrameLenDown = m->MaxDutyCycle;
-		r->DownlinkFrame = (rsuint16) (m->PpNumber * 2);
-		r->DownLinkRedundant = 1;
-		r->UlpFrameLenUp = 8;
-		r->UplinkStartFrame = 128;
-		r->UplinkEndFrame = 255;
-		r->Slotsize = 1;
-	}
+/* 	} else { */
+/* 		r->UlpFrameLenDown = m->MaxDutyCycle; */
+/* 		r->DownlinkFrame = (rsuint16) (m->PpNumber * 2); */
+/* 		r->DownLinkRedundant = 1; */
+/* 		r->UlpFrameLenUp = 8; */
+/* 		r->UplinkStartFrame = 128; */
+/* 		r->UplinkEndFrame = 255; */
+/* 		r->Slotsize = 1; */
+/* 	} */
 	
-	printf("API_FP_ULE_SERVICE_RES\n");
-	_write_dect((unsigned char *)r, sizeof(ApiFpUleServiceResType));
-	free(r);
-}
+/* 	printf("API_FP_ULE_SERVICE_RES\n"); */
+/* 	_write_dect((unsigned char *)r, sizeof(ApiFpUleServiceResType)); */
+/* 	free(r); */
+/* } */
 
 
 static void handset_ipui_cfm(unsigned char *mail) {  
@@ -619,7 +645,7 @@ static void handset_ipui_cfm(unsigned char *mail) {
 
 	printf("INPUT: API_FP_MM_GET_HANDSET_IPUI_CFM\n");
 
-	handset = ((ApiFpMmGetHandsetIpuiCfmType *) mail)->HandsetId;
+	handset = ((ApiFpMmGetHandsetIpuiCfmType *) mail)->TerminalId;
 
 	for (i = 0; i < 5; i++)
 		status.handset[handset - 1].ipui[i] = ((ApiFpMmGetHandsetIpuiCfmType *) mail)->IPUI[i];
@@ -808,7 +834,7 @@ void packet_read(struct bufferevent *bev, void *ctx) {
 void handle_dect_packet(unsigned char *buf) {
 
 	int i;
-	RosPrimitiveType primitive = ((recDataType *) buf)->PrimitiveIdentifier;
+	RosPrimitiveType primitive = ((ApifpccEmptySignalType *) buf)->Primitive;
 	struct packet *p = (struct packet *)buf;
 
 	switch (primitive) {
@@ -825,7 +851,7 @@ void handle_dect_packet(unsigned char *buf) {
 		printf("API_FP_CC_RELEASE_IND\n");
 		break;
 
-	case API_FP_FWU_DEVICE_NOTIFY_IND:
+	case API_FWU_DEVICE_NOTIFY_IND:
 		printf("API_FP_FWU_DEVICE_NOTIFY_IND\n");
 		break;
 
@@ -846,7 +872,7 @@ void handle_dect_packet(unsigned char *buf) {
 		printf("API_FP_CC_ALERT_IND\n");
 		break;
 
-	case API_FP_LINUX_NVS_UPDATE_IND:
+	case API_LINUX_NVS_UPDATE_IND:
 		printf("API_FP_LINUX_NVS_UPDATE_IND\n");
 		break;
 
@@ -879,15 +905,15 @@ void handle_dect_packet(unsigned char *buf) {
 		list_handsets();
 		break;
 
-	case API_FP_LINUX_INIT_CFM:
+	case API_LINUX_INIT_CFM:
 		printf("API_FP_LINUX_INIT_CFM\n");
 		init_cfm();
 		list_handsets();
 		break;
 
-	case API_FP_GET_EEPROM_CFM:
-		printf("API_FP_GET_EEPROM_CFM\n");
-		break;
+	/* case API_GET_EEPROM_CFM: */
+	/* 	printf("API_FP_GET_EEPROM_CFM\n"); */
+	/* 	break; */
 
 	case API_FP_CC_RELEASE_CFM:
 		printf("API_FP_CC_RELEASE_CFM\n");
@@ -897,27 +923,27 @@ void handle_dect_packet(unsigned char *buf) {
 		printf("API_FP_CC_SETUP_CFM\n");
  		break;
 
-	case API_FP_ULE_SERVICE_IND:
-		printf("API_FP_ULE_SERVICE_IND\n");
-		ule_service_ind(buf);
-		break;
+	/* case API_FP_ULE_SERVICE_IND: */
+	/* 	printf("API_FP_ULE_SERVICE_IND\n"); */
+	/* 	ule_service_ind(buf); */
+	/* 	break; */
 
-	case API_FP_ULE_INIT_CFM:
-		printf("API_FP_ULE_INIT_CFM\n");
-		break;
+	/* case API_FP_ULE_INIT_CFM: */
+	/* 	printf("API_FP_ULE_INIT_CFM\n"); */
+	/* 	break; */
 
-	case API_FP_ULE_DATA_IND:
-		printf("API_FP_ULE_DATA_IND\n");
-		ule_data_ind(buf);
-		break;
+	/* case API_FP_ULE_DATA_IND: */
+	/* 	printf("API_FP_ULE_DATA_IND\n"); */
+	/* 	ule_data_ind(buf); */
+	/* 	break; */
 
-	case API_FP_ULE_DTR_IND:
-		printf("API_FP_ULE_DTR_IND\n");
-		break;
+	/* case API_FP_ULE_DTR_IND: */
+	/* 	printf("API_FP_ULE_DTR_IND\n"); */
+	/* 	break; */
 
-	case API_FP_ULE_DATA_REJECT_IND:
-		printf("API_FP_ULE_REJECT_IND\n");
-		break;
+	/* case API_FP_ULE_DATA_REJECT_IND: */
+	/* 	printf("API_FP_ULE_REJECT_IND\n"); */
+	/* 	break; */
 
 	case API_FP_ULE_GET_REGISTRATION_COUNT_CFM:
 		printf("API_FP_ULE_GET_REGISTRATION_COUNT_CFM\n");
@@ -961,7 +987,7 @@ void handle_client_packet(struct bufferevent *bev, client_packet *p) {
 
 	case ZWITCH:
 		printf("SWITCH %d\n", p->data);
-		ule_data_req(p->data);
+		//ule_data_req(p->data);
 		break;
 
 	case DELETE_HSET:
@@ -977,7 +1003,7 @@ void handle_client_packet(struct bufferevent *bev, client_packet *p) {
 
 	case ULE_START:
 		printf("ULE_START\n");
-		ule_start();
+		//ule_start();
 		break;
 
 	case INIT:

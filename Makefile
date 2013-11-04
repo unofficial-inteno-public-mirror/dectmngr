@@ -15,40 +15,30 @@ OBJS = dectmngr.o
 # CFLAGS += -I$(BUILD_DIR)/bcmkernel-4.12/4.12L.04/xChange/dslx_common/xchg_common/bos/publicInc/
 # CFLAGS += -I$(BUILD_DIR)/bcmkernel-4.12/4.12L.04/xChange/dslx_common/voice_res_gw/casCtl/inc/
 # CFLAGS += -I$(BUILD_DIR)/bcmkernel-4.12/4.12L.04/xChange/dslx_common/xchg_drivers/inc
-CFLAGS += -DBOS_OS_LINUXUSER -DBOS_CFG_TIME -DNTR_SUPPORT -DBOS_CFG_SLEEP -DBOS_CFG_TASK 
+CFLAGS += -DBOS_OS_LINUXUSER -DBOS_CFG_TIME -DNTR_SUPPORT -DBOS_CFG_SLEEP -DBOS_CFG_TASK -DRS_ENDIAN_TYPE=RS_LITTLE_ENDIAN
+
 
 DECTD_DIR=$(BUILD_DIR)/bcmkernel-3.4-4.14/bcm963xx/userspace/private/apps/dectd
 BRCM_DIR=$(BUILD_DIR)/bcmkernel-3.4-4.14/bcm963xx
+BRITNEY=/home/jonash/Desktop/britney/Britney1108/NatalieFpCvm6362_v1108/SrcHeaders
+
 #
 # Set include directories
 #
-INCLUDE_PATHS = -I$(DECTD_DIR)                       \
-           -I$(DECTD_DIR)/inc                   \
-           -I$(DECTD_DIR)/dectI/inc               \
-           -I$(DECTD_DIR)/dectI/inc/Phoenix               \
-           -I$(DECTD_DIR)/dectI/inc/Phoenix/Api               \
-           -I$(DECTD_DIR)/dectI/inc/Phoenix/Api/CodecList     \
-           -I$(DECTD_DIR)/dectI/inc/Phoenix/Api/FpCc          \
-           -I$(DECTD_DIR)/dectI/inc/Phoenix/Api/FpFwu         \
-           -I$(DECTD_DIR)/dectI/inc/Phoenix/Api/FpMm          \
-           -I$(DECTD_DIR)/dectI/inc/Phoenix/Api/FpNoEmission  \
-           -I$(DECTD_DIR)/dectI/inc/Phoenix/Api/GenEveNot     \
-           -I$(DECTD_DIR)/dectI/inc/Phoenix/Api/FpGeneral     \
-           -I$(DECTD_DIR)/dectI/inc/Phoenix/Api/Las           \
-           -I$(DECTD_DIR)/dectI/inc/Phoenix/Api/LasDb         \
-           -I$(DECTD_DIR)/dectI/inc/Phoenix/Api/Project       \
-           -I$(DECTD_DIR)/dectI/inc/Phoenix/Api/Types         \
-             -I$(BRCM_DIR)/userspace/public/include  \
-             -I$(BRCM_DIR)/userspace/public/include/$(OALDIR) \
-             -I$(BRCM_DIR)/userspace/private/include  \
-             -I$(BRCM_DIR)/userspace/private/include/$(OALDIR) \
-             -I$(BRCM_DIR)/xChange/dslx/apps/cfginc/xchg_common                 \
-             -I$(BRCM_DIR)/xChange/dslx_common/xchg_common/bos/publicInc        \
-             -I$(BRCM_DIR)/xChange/dslx_common/xchg_common/assert/cfginc        \
-             -I$(BRCM_DIR)/xChange/dslx_common/xchg_common/assert/inc           \
-             -I$(BRCM_DIR)/xChange/dslx_common/xchg_common/str                  \
-            # -I$(INC_BRCMDRIVER_PUB_PATH)/$(BRCM_BOARD)  \
-            # -I$(INC_BRCMDRIVER_PRIV_PATH)/$(BRCM_BOARD)
+INCLUDE_PATHS = \
+		-I$(BRITNEY)/ \
+		-I$(BRITNEY)/Phoenix/ \
+		-I$(BRCM_DIR)/userspace/public/include  \
+		-I$(BRCM_DIR)/userspace/public/include/$(OALDIR) \
+		-I$(BRCM_DIR)/userspace/private/include  \
+		-I$(BRCM_DIR)/userspace/private/include/$(OALDIR) \
+		-I$(BRCM_DIR)/xChange/dslx/apps/cfginc/xchg_common                 \
+		-I$(BRCM_DIR)/xChange/dslx_common/xchg_common/bos/publicInc        \
+		-I$(BRCM_DIR)/xChange/dslx_common/xchg_common/assert/cfginc        \
+		-I$(BRCM_DIR)/xChange/dslx_common/xchg_common/assert/inc           \
+		-I$(BRCM_DIR)/xChange/dslx_common/xchg_common/str                  \
+
+
 
 
 all: main
