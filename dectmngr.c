@@ -420,10 +420,22 @@ static void ping_handset_start(int handset) {
 }
 
 
-static void get_handset_ipui(int handset) {  
+/* static void get_handset_ipui(int handset) {   */
 
-	write_dect3(API_FP_MM_GET_HANDSET_IPUI_REQ, handset);
+/* 	write_dect3(API_FP_MM_GET_HANDSET_IPUI_REQ, handset); */
+/* } */
+
+
+static void get_handset_ipui(int handset)
+{
+	ApiFpMmGetHandsetIpuiReqType* m = (ApiFpMmGetHandsetIpuiReqType*)malloc(sizeof(ApiFpMmGetHandsetIpuiReqType));
+
+	m->Primitive = API_FP_MM_GET_HANDSET_IPUI_REQ;
+	m->TerminalId = handset;
+	_write_dect((unsigned char *)m, sizeof(ApiFpMmGetHandsetIpuiReqType));
+
 }
+
 
 
 static void registration_count_cfm(unsigned char *mail) {
@@ -431,9 +443,12 @@ static void registration_count_cfm(unsigned char *mail) {
 	int i, handset;
 	
 	printf("INPUT: API_FP_MM_GET_REGISTRATION_COUNT_CFM\n");
+
 	if (((ApiFpMmGetRegistrationCountCfmType*) mail)->Status == RSS_SUCCESS) {
 
 		printf("Max Number of Handset allowed: %d\n", ((ApiFpMmGetRegistrationCountCfmType*) mail)->MaxNoHandsets);
+
+		printf("TerminalIdCount: %d\n", ((ApiFpMmGetRegistrationCountCfmType*) mail)->TerminalIdCount);
 		 
 		for (i = 0 ; i < (((ApiFpMmGetRegistrationCountCfmType*) mail)->TerminalIdCount ) ; i++ ) {
 			 
@@ -505,14 +520,14 @@ static void present_ind(unsigned char *mail) {
 	handset = ((ApiFpMmHandsetPresentIndType*) mail)->TerminalId;
 	length = ((ApiFpMmHandsetPresentIndType*) mail)->InfoElementLength;
 	printf("INPUT: API_FP_MM_HANDSET_PRESENT_IND from handset (%d)\n", handset);
-	printf("length: %d\n", length);
+	/* printf("length: %d\n", length); */
 	
-	t = (ApiLinuxInitReqType*) malloc(sizeof(ApiFpMmHandsetPresentIndType));
-        t->Primitive = API_FP_MM_HANDSET_PRESENT_IND;
-        t->TerminalId = 1;
-	t->InfoElementLength = 46;
+	/* t = (ApiLinuxInitReqType*) malloc(sizeof(ApiFpMmHandsetPresentIndType)); */
+        /* t->Primitive = API_FP_MM_HANDSET_PRESENT_IND; */
+        /* t->TerminalId = 1; */
+	/* t->InfoElementLength = 46; */
 
-        _write_dect(t, sizeof(ApiFpMmHandsetPresentIndType));
+        /* _write_dect(t, sizeof(ApiFpMmHandsetPresentIndType)); */
 
 	status.handset[handset - 1].present = TRUE;
 }
@@ -643,8 +658,6 @@ static void handset_ipui_cfm(unsigned char *mail) {
 
 	int handset, i;
 
-	printf("INPUT: API_FP_MM_GET_HANDSET_IPUI_CFM\n");
-
 	handset = ((ApiFpMmGetHandsetIpuiCfmType *) mail)->TerminalId;
 
 	for (i = 0; i < 5; i++)
@@ -653,6 +666,7 @@ static void handset_ipui_cfm(unsigned char *mail) {
 	/* Check if the next handset is also registeried */
 	if (status.handset[handset].registered == TRUE)
 		get_handset_ipui(handset + 1);
+	
 }
 
 
@@ -908,7 +922,7 @@ void handle_dect_packet(unsigned char *buf) {
 	case API_LINUX_INIT_CFM:
 		printf("API_FP_LINUX_INIT_CFM\n");
 		init_cfm();
-		list_handsets();
+		//list_handsets();
 		break;
 
 	/* case API_GET_EEPROM_CFM: */
@@ -921,6 +935,11 @@ void handle_dect_packet(unsigned char *buf) {
 
 	case API_FP_CC_SETUP_CFM:
 		printf("API_FP_CC_SETUP_CFM\n");
+ 		break;
+
+	case API_FP_CC_FEATURES_CFM:
+		printf("API_FP_CC_FEATURES_CFM\n");
+		list_handsets();
  		break;
 
 	/* case API_FP_ULE_SERVICE_IND: */
