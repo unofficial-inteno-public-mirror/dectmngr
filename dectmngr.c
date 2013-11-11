@@ -345,80 +345,111 @@ void ApiBuildInfoElement(ApiInfoElementType **IeBlockPtr,
 
 static void ping_handset_start(int handset) {
 
-	ApiCallingNameType * pCallingNameIe    = NULL;
-	ApiInfoElementType * pingIeBlockPtr    = NULL;
-	ApiFpCcSetupReqType * pingMailPtr      = NULL;
-	unsigned short pingIeBlockLength       = 0;
-	char callingName[]                     = "HANDSET LOCATOR";
-	int callIdx;
+	ApiFpCcSetupReqType* m;
+	ApiFpCcAudioIdType Audio;
 
-	/************************************************
-	 * create API_IE_CALLING_PARTY_NAME infoElement *
-	 ************************************************/
+	m = (ApiFpCcSetupReqType*) malloc(sizeof(ApiFpCcSetupReqType));
 
-	pCallingNameIe = malloc( (sizeof(ApiCallingNameType) - 1) + (strlen(callingName)+1) );
+	CallReference.Value = 0;
+	CallReference.Instance.Host = 0;
+	CallReference.Instance.Fp = 1;
 
-	if(pCallingNameIe != NULL ) {
-			pCallingNameIe->UsedAlphabet     = AUA_DECT;
-			pCallingNameIe->PresentationInd  = API_PRESENTATION_HANSET_LOCATOR;
-			pCallingNameIe->ScreeningInd     = API_NETWORK_PROVIDED;
-			pCallingNameIe->NameLength       = strlen(callingName);
-			memcpy( &(pCallingNameIe->Name[0]), callingName, (strlen(callingName)+1) );
+	Audio.IntExtAudio = API_IEA_INT;
+	Audio.SourceTerminalId = 0;
+	
 
-			/* Add to infoElement block */
-			ApiBuildInfoElement( &pingIeBlockPtr,
-					     &pingIeBlockLength,
-					     API_IE_CALLING_PARTY_NAME,
-					     ((sizeof(ApiCallingNameType) - 1) + (strlen(callingName)+1) ),
-					     (unsigned char*)pCallingNameIe);
-
-			/* free infoElement */
-			free(pCallingNameIe);
-
-			if(pingIeBlockPtr == NULL) {
-				printf("dectCallMgrSetupPingingCall: ApiBuildInfoElement FAILED for API_IE_CALLING_PARTY_NAME!!\n");
-				return;
-			}
-	} else {
-		printf("dectCallMgrSetupPingingCall: malloc FAILED for API_IE_CALLING_PARTY_NAME!!\n");
-		return;
-	}
-
-	/*****************************************************
-	 * create API_FP_CC_SETUP_REQ mail *
-	 *****************************************************/
-	if(pingIeBlockLength > 0) {
-		/* Allocate memory for mail */
-		pingMailPtr = (ApiFpCcSetupReqType *) malloc( (sizeof(ApiFpCcSetupReqType)-1) + pingIeBlockLength );
-		if (pingMailPtr != NULL) {
-
-			/* Fillout mail contents */
-			((ApiFpCcSetupReqType *) pingMailPtr)->Primitive    = API_FP_CC_SETUP_REQ;
-			((ApiFpCcSetupReqType *) pingMailPtr)->TerminalId = handset;
-			((ApiFpCcSetupReqType *) pingMailPtr)->BasicService = API_BASIC_SPEECH;
-			((ApiFpCcSetupReqType *) pingMailPtr)->CallClass    = API_CC_NORMAL;
-			((ApiFpCcSetupReqType *) pingMailPtr)->AudioId.SourceTerminalId     = 0; /* 0 is the base station id */
-			((ApiFpCcSetupReqType *) pingMailPtr)->Signal       = API_CC_SIGNAL_ALERT_ON_PATTERN_2;
-
-			/* Copy over infoElements */
-			memcpy( &(((ApiFpCcSetupReqType *) pingMailPtr)->InfoElement[0]), pingIeBlockPtr, pingIeBlockLength );
-			ApiFreeInfoElement( &pingIeBlockPtr );
-
-			((ApiFpCcSetupReqType *) pingMailPtr)->InfoElementLength = pingIeBlockLength;
-		} else {
-			printf("dectCallMgrSetupPingingCall: No more memory available for API_FP_CC_SETUP_REQ!!!\n");
-			return;
-		}
-	} else {
-		printf("dectCallMgrSetupPingingCall: zero pingIeBlockLength!!!\n");
-		ApiFreeInfoElement( &pingIeBlockPtr );
-		return;
-	}
-
-	/* Send the mail */
-	printf("OUTPUT: API_FP_CC_SETUP_REQ (ping)\n");
-	_write_dect( (unsigned char *)pingMailPtr, (sizeof(ApiFpCcSetupReqType)-1) + pingIeBlockLength );
+	m->Primitive = API_FP_CC_SETUP_REQ;
+	m->CallReference = CallReference;
+	m->TerminalId = handset;
+	m->AudioId = Audio;
+	m->BasicService = API_BASIC_SPEECH;
+	m->CallClass = API_CC_NORMAL;
+	m->Signal = API_CC_SIGNAL_ALERT_ON_PATTERN_2;
+	m->InfoElementLength = 0;
+					  
+	_write_dect(m, sizeof(ApiFpCcSetupReqType));
+	free(m);
+	  
 }
+
+
+
+/* static void ping_handset_start(int handset) { */
+
+/* 	ApiCallingNameType * pCallingNameIe    = NULL; */
+/* 	ApiInfoElementType * pingIeBlockPtr    = NULL; */
+/* 	ApiFpCcSetupReqType * pingMailPtr      = NULL; */
+/* 	unsigned short pingIeBlockLength       = 0; */
+/* 	char callingName[]                     = "HANDSET LOCATOR"; */
+/* 	int callIdx; */
+
+/* 	/\************************************************ */
+/* 	 * create API_IE_CALLING_PARTY_NAME infoElement * */
+/* 	 ************************************************\/ */
+
+/* 	pCallingNameIe = malloc( (sizeof(ApiCallingNameType) - 1) + (strlen(callingName)+1) ); */
+
+/* 	if(pCallingNameIe != NULL ) { */
+/* 			pCallingNameIe->UsedAlphabet     = AUA_DECT; */
+/* 			pCallingNameIe->PresentationInd  = API_PRESENTATION_HANSET_LOCATOR; */
+/* 			pCallingNameIe->ScreeningInd     = API_NETWORK_PROVIDED; */
+/* 			pCallingNameIe->NameLength       = strlen(callingName); */
+/* 			memcpy( &(pCallingNameIe->Name[0]), callingName, (strlen(callingName)+1) ); */
+
+/* 			/\* Add to infoElement block *\/ */
+/* 			ApiBuildInfoElement( &pingIeBlockPtr, */
+/* 					     &pingIeBlockLength, */
+/* 					     API_IE_CALLING_PARTY_NAME, */
+/* 					     ((sizeof(ApiCallingNameType) - 1) + (strlen(callingName)+1) ), */
+/* 					     (unsigned char*)pCallingNameIe); */
+
+/* 			/\* free infoElement *\/ */
+/* 			free(pCallingNameIe); */
+
+/* 			if(pingIeBlockPtr == NULL) { */
+/* 				printf("dectCallMgrSetupPingingCall: ApiBuildInfoElement FAILED for API_IE_CALLING_PARTY_NAME!!\n"); */
+/* 				return; */
+/* 			} */
+/* 	} else { */
+/* 		printf("dectCallMgrSetupPingingCall: malloc FAILED for API_IE_CALLING_PARTY_NAME!!\n"); */
+/* 		return; */
+/* 	} */
+
+/* 	/\***************************************************** */
+/* 	 * create API_FP_CC_SETUP_REQ mail * */
+/* 	 *****************************************************\/ */
+/* 	if(pingIeBlockLength > 0) { */
+/* 		/\* Allocate memory for mail *\/ */
+/* 		pingMailPtr = (ApiFpCcSetupReqType *) malloc( (sizeof(ApiFpCcSetupReqType)-1) + pingIeBlockLength ); */
+/* 		if (pingMailPtr != NULL) { */
+
+/* 			/\* Fillout mail contents *\/ */
+/* 			((ApiFpCcSetupReqType *) pingMailPtr)->Primitive    = API_FP_CC_SETUP_REQ; */
+/* 			((ApiFpCcSetupReqType *) pingMailPtr)->TerminalId = handset; */
+/* 			((ApiFpCcSetupReqType *) pingMailPtr)->BasicService = API_BASIC_SPEECH; */
+/* 			((ApiFpCcSetupReqType *) pingMailPtr)->CallClass    = API_CC_NORMAL; */
+/* 			((ApiFpCcSetupReqType *) pingMailPtr)->AudioId.SourceTerminalId     = 0; /\* 0 is the base station id *\/ */
+/* 			((ApiFpCcSetupReqType *) pingMailPtr)->Signal       = API_CC_SIGNAL_ALERT_ON_PATTERN_2; */
+
+/* 			/\* Copy over infoElements *\/ */
+/* 			memcpy( &(((ApiFpCcSetupReqType *) pingMailPtr)->InfoElement[0]), pingIeBlockPtr, pingIeBlockLength ); */
+/* 			ApiFreeInfoElement( &pingIeBlockPtr ); */
+
+/* 			((ApiFpCcSetupReqType *) pingMailPtr)->InfoElementLength = pingIeBlockLength; */
+/* 		} else { */
+/* 			printf("dectCallMgrSetupPingingCall: No more memory available for API_FP_CC_SETUP_REQ!!!\n"); */
+/* 			return; */
+/* 		} */
+/* 	} else { */
+/* 		printf("dectCallMgrSetupPingingCall: zero pingIeBlockLength!!!\n"); */
+/* 		ApiFreeInfoElement( &pingIeBlockPtr ); */
+/* 		return; */
+/* 	} */
+
+/* 	/\* Send the mail *\/ */
+/* 	printf("OUTPUT: API_FP_CC_SETUP_REQ (ping)\n"); */
+/* 	_write_dect( (unsigned char *)pingMailPtr, (sizeof(ApiFpCcSetupReqType)-1) + pingIeBlockLength ); */
+/* } */
 
 
 /* static void get_handset_ipui(int handset) {   */
@@ -493,6 +524,7 @@ static void setup_cfm(unsigned char *b) {
 	ApiFpCcSetupResType *m = (ApiFpCcSetupResType *)b;
 	
 	CallReference = m->CallReference;
+	printf("Status: %d\n", m->Status);
 	printf("Status: %d\n", m->Status);
 }
 
