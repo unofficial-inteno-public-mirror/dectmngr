@@ -40,6 +40,7 @@ struct bufferevent *dect;
 struct event_base *base;
 struct info *dect_info;
 struct status_packet status;
+ApiCallReferenceType CallReference;
 
 char *hotplug_cmd_path = DEFAULT_HOTPLUG_PATH;
 
@@ -468,12 +469,34 @@ static void registration_count_cfm(unsigned char *mail) {
 static void ping_handset_stop(struct event *ev, short error, void *arg) {
 
 	int *handset = arg;
+	ApiFpCcReleaseReqType *m;
 
 	status.handset[(*handset) - 1].pinging = FALSE;
 
+	m = (ApiFpCcReleaseReqType *) malloc(sizeof(ApiFpCcReleaseReqType));
+	
+	m->Primitive = API_FP_CC_RELEASE_REQ;
+	m->CallReference = CallReference;
+	m->Reason = API_RR_UNEXPECTED_MESSAGE;
+	m->InfoElementLength = 0;
+	m->InfoElement[1] = NULL;
+
 	printf("API_FP_CC_RELEASE_REQ\n");
-	write_dect5(API_FP_CC_RELEASE_REQ, *handset);
+	_write_dect(m, sizeof(ApiFpCcReleaseReqType));
+	free(m);
 }
+
+
+
+static void setup_cfm(unsigned char *b) {
+
+	ApiFpCcSetupResType *m = (ApiFpCcSetupResType *)b;
+	
+	CallReference = m->CallReference;
+	printf("Status: %d\n", m->Status);
+}
+
+
 
 
 static void register_handsets_start(void) {
@@ -935,6 +958,7 @@ void handle_dect_packet(unsigned char *buf) {
 
 	case API_FP_CC_SETUP_CFM:
 		printf("API_FP_CC_SETUP_CFM\n");
+		setup_cfm(buf);
  		break;
 
 	case API_FP_CC_FEATURES_CFM:
