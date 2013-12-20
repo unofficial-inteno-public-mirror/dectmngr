@@ -18,16 +18,14 @@ OBJS = dectmngr.o
 CFLAGS += -DBOS_OS_LINUXUSER -DBOS_CFG_TIME -DNTR_SUPPORT -DBOS_CFG_SLEEP -DBOS_CFG_TASK -DRS_ENDIAN_TYPE=RS_LITTLE_ENDIAN
 
 
-DECTD_DIR=$(BUILD_DIR)/bcmkernel-3.4-4.14/bcm963xx/userspace/private/apps/dectd
 BRCM_DIR=$(BUILD_DIR)/bcmkernel-3.4-4.14/bcm963xx
-BRITNEY=/home/jonash/Desktop/britney/Britney1108/NatalieFpCvm6362_v1108/SrcHeaders
 
 #
 # Set include directories
 #
 INCLUDE_PATHS = \
-		-I$(BRITNEY)/ \
-		-I$(BRITNEY)/Phoenix/ \
+		-I$(STAGING_DIR)/usr/include/natalie-dect/ \
+		-I$(STAGING_DIR)/usr/include/natalie-dect/Phoenix  \
 		-I$(BRCM_DIR)/userspace/public/include  \
 		-I$(BRCM_DIR)/userspace/public/include/$(OALDIR) \
 		-I$(BRCM_DIR)/userspace/private/include  \
