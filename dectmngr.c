@@ -27,7 +27,7 @@
 #include <Api/Las/ApiLas.h>
 #include <Api/Linux/ApiLinux.h>
 //#include <Api/Project/ApiProject.h>
-
+#include <Api/FpUle/ApiFpUle.h>
 
 
 #include <json/json.h>
@@ -265,29 +265,19 @@ static void list_handsets(void) {
 }
 
 
-/* static void ule_start(void) { */
+static void ule_start(void) {
+
+	ApiFpUleInitReqType *m;
 	
-/* 	ApiFpUleInitReqType *m; */
-	
-/* 	if(!(m = (ApiFpUleInitReqType *)calloc(1, sizeof(ApiFpUleInitReqType)))) */
-/* 		exit_failure("malloc"); */
+	if(!(m = (ApiFpUleInitReqType *)calloc(1, sizeof(ApiFpUleInitReqType))))
+		exit_failure("malloc");
 
-/* 	m->Primitive = API_FP_ULE_INIT_REQ; */
-/* 	/\* m->MaxUlpDevices = 0xff; *\/ */
-/* 	/\* m->DlBuffers = 0xff; *\/ */
-/* 	/\* m->DlBufferSize = 0xff; *\/ */
-/* 	/\* m->UlBuffers = 0xff; *\/ */
-/* 	/\* m->UlBufferSize = 0xff; *\/ */
+	m->Primitive = API_FP_ULE_INIT_REQ;
+	m->MaxUlpDevices = 0xff;
 
-/* 	m->MaxUlpDevices = 0x40; */
-/* 	m->DlBuffers = 0x40; */
-/* 	m->DlBufferSize = 0x1d; */
-/* 	m->UlBuffers = 0x40; */
-/* 	m->UlBufferSize = 0x1d; */
-
-/* 	printf("ule_start\n"); */
-/* 	_write_dect(m, sizeof(ApiFpUleInitReqType)); */
-/* } */
+	printf("ule_start\n");
+	_write_dect(m, sizeof(ApiFpUleInitReqType));
+}
 
 
 void ApiFreeInfoElement(ApiInfoElementType **IeBlockPtr) {
@@ -998,27 +988,18 @@ void handle_dect_packet(unsigned char *buf) {
 		list_handsets();
  		break;
 
-	/* case API_FP_ULE_SERVICE_IND: */
-	/* 	printf("API_FP_ULE_SERVICE_IND\n"); */
-	/* 	ule_service_ind(buf); */
-	/* 	break; */
+	case API_FP_ULE_INIT_CFM:
+		printf("API_FP_ULE_INIT_CFM\n");
+		break;
 
-	/* case API_FP_ULE_INIT_CFM: */
-	/* 	printf("API_FP_ULE_INIT_CFM\n"); */
-	/* 	break; */
+	case API_FP_ULE_DATA_IND:
+		printf("API_FP_ULE_DATA_IND\n");
+		//ule_data_ind(buf);
+		break;
 
-	/* case API_FP_ULE_DATA_IND: */
-	/* 	printf("API_FP_ULE_DATA_IND\n"); */
-	/* 	ule_data_ind(buf); */
-	/* 	break; */
-
-	/* case API_FP_ULE_DTR_IND: */
-	/* 	printf("API_FP_ULE_DTR_IND\n"); */
-	/* 	break; */
-
-	/* case API_FP_ULE_DATA_REJECT_IND: */
-	/* 	printf("API_FP_ULE_REJECT_IND\n"); */
-	/* 	break; */
+	case API_FP_ULE_DTR_IND:
+		printf("API_FP_ULE_DTR_IND\n");
+		break;
 
 	case API_FP_ULE_GET_REGISTRATION_COUNT_CFM:
 		printf("API_FP_ULE_GET_REGISTRATION_COUNT_CFM\n");
@@ -1078,7 +1059,7 @@ void handle_client_packet(struct bufferevent *bev, client_packet *p) {
 
 	case ULE_START:
 		printf("ULE_START\n");
-		//ule_start();
+		ule_start();
 		break;
 
 	case INIT:
