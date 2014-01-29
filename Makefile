@@ -18,7 +18,6 @@ OBJS = dectmngr.o
 CFLAGS += -DBOS_OS_LINUXUSER -DBOS_CFG_TIME -DNTR_SUPPORT -DBOS_CFG_SLEEP -DBOS_CFG_TASK -DRS_ENDIAN_TYPE=RS_LITTLE_ENDIAN
 
 
-BRCM_DIR=$(BUILD_DIR)/bcmkernel-3.4-4.14/bcm963xx
 
 #
 # Set include directories
@@ -26,15 +25,14 @@ BRCM_DIR=$(BUILD_DIR)/bcmkernel-3.4-4.14/bcm963xx
 INCLUDE_PATHS = \
 		-I$(STAGING_DIR)/usr/include/natalie-dect/ \
 		-I$(STAGING_DIR)/usr/include/natalie-dect/Phoenix  \
-		-I$(BRCM_DIR)/userspace/public/include  \
-		-I$(BRCM_DIR)/userspace/public/include/$(OALDIR) \
-		-I$(BRCM_DIR)/userspace/private/include  \
-		-I$(BRCM_DIR)/userspace/private/include/$(OALDIR) \
-		-I$(BRCM_DIR)/xChange/dslx/apps/cfginc/xchg_common                 \
-		-I$(BRCM_DIR)/xChange/dslx_common/xchg_common/bos/publicInc        \
-		-I$(BRCM_DIR)/xChange/dslx_common/xchg_common/assert/cfginc        \
-		-I$(BRCM_DIR)/xChange/dslx_common/xchg_common/assert/inc           \
-		-I$(BRCM_DIR)/xChange/dslx_common/xchg_common/str                  \
+		-I$(STAGING_DIR)/usr/include/bcm963xx/bcmdrivers/broadcom/include/bcm963xx/ \
+		-I$(STAGING_DIR)/usr/include/bcm963xx/bcmdrivers/opensource/include/bcm963xx/ \
+		-I$(STAGING_DIR)/usr/include/bcm963xx/xChange/dslx_common/voice_res_gw/endpt/inc/ \
+		-I$(STAGING_DIR)/usr/include/bcm963xx/xChange/dslx_common/voice_res_gw/inc \
+		-I$(STAGING_DIR)/usr/include/bcm963xx/xChange/dslx_common/voice_res_gw/codec \
+		-I$(STAGING_DIR)/usr/include/bcm963xx/xChange/dslx_common/xchg_common/bos/publicInc/ \
+		-I$(STAGING_DIR)/usr/include/bcm963xx/xChange/dslx_common/voice_res_gw/casCtl/inc/ \
+		-I$(STAGING_DIR)/usr/include/bcm963xx/xChange/dslx_common/xchg_drivers/inc \
 
 
 
