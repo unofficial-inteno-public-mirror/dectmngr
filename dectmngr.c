@@ -603,37 +603,51 @@ static void connect_ind(unsigned char *buf) {
 		status.handset[(handset) - 1].pinging = FALSE;
 }
 
-/* static void ule_data_req(int switch_on) { */
-/* 	ApiFpUleDataReqType *r = calloc(1, sizeof(ApiFpUleDataReqType)); */
+static void ule_data_req(int switch_on) {
+	ApiFpUleDataReqType *r = calloc(1, sizeof(ApiFpUleDataReqType) + 18);
 	
-/* 	rsuint8 switch_on_p[19] =  { 0x31,0x45,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0 }; */
+	//	0x18 0x45 0 X4 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
 
-/* 	//rsuint8 switch_on_p[19] =  { 0x31,0x45,0x1,0x1,0x1,0x1,0x1,0x1,0x1,0x1,0x1,0x1,0x1,0x1,0x1,0x1,0x1,0x1,0x1 }; */
+	rsuint8 switch_timer_p[19] =  { 0x18,0x45,0x0,0xff,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0 };
+	rsuint8 switch_on_p[19] =  { 0x31,0x45,0x0,0x01,0x01,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0 };
 
-/* 	rsuint8 switch_off_p[19] = { 0x31,0x45,0x0,0x1,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0 }; */
+	rsuint8 switch_off_p[19] = { 0x31,0x45,0x0,0x1,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0 };
 
-/* 	r->Primitive = API_FP_ULE_DATA_REQ; */
-/* 	r->PpNumber = 7; */
-/* 	r->DlcCtrl = PAGING_ON | ULP_DLC_CTRL_ACKNOWLEDGED; */
-/* 	r->Length = 20; */
+	r->Primitive = API_FP_ULE_DATA_REQ;
+	r->TerminalId = 7;
+	r->DlcCtrl = PAGING_ON | ULP_DLC_CTRL_ACKNOWLEDGED;
+	//	r->DlcCtrl = PAGING_ON | ULP_DLC_CTRL_UNACKNOWLEDGED;
+	r->Length = 20;
 	
-/* 	if (switch_on) { */
-/* 		printf("switch on\n"); */
-/* 		memcpy(r->Data, switch_on_p, 19); */
-/* 		switch_state_on = 1; */
-/* 	} else { */
-/* 		printf("switch off\n"); */
-/* 		memcpy(r->Data, switch_off_p, 19); */
-/* 		switch_state_on = 0; */
-/* 	} */
-	
-/* 	printf("API_FP_ULE_DATA_REQ\n"); */
-/* 	_write_dect((unsigned char *)r, sizeof(ApiFpUleDataReqType)); */
-/* 	free(r); */
-	
+	if (switch_on == 1) {
+		printf("switch on\n");
+		memcpy(r->Data, switch_on_p, 19);
+		switch_state_on = 1;
+	} else if (switch_on == 0){
+		printf("switch off\n");
+		memcpy(r->Data, switch_off_p, 19);
+		switch_state_on = 0;
+ 	} else if (switch_on == 2){
+		printf("switch timer\n");
+		memcpy(r->Data, switch_timer_p, 19);
+	}
+
+
+	printf("API_FP_ULE_DATA_REQ\n");
+	_write_dect((unsigned char *)r, sizeof(ApiFpUleDataReqType) + 18);
+	free(r);
 
 	
-/* } */
+}
+
+
+static void ule_data_cfm(ApiFpUleDataCfmType *m) {
+
+	printf("TerminalId: %d\n", m->TerminalId);
+	printf("Status: %d\n", m->Status);
+
+}
+
 
 
 /* static void ule_data_ind(unsigned char *buf) { */
@@ -997,6 +1011,11 @@ void handle_dect_packet(unsigned char *buf) {
 		//ule_data_ind(buf);
 		break;
 
+	case API_FP_ULE_DATA_CFM:
+		printf("API_FP_ULE_DATA_CFM\n");
+		ule_data_cfm((ApiFpUleDataCfmType *)buf);
+		break;
+
 	case API_FP_ULE_DTR_IND:
 		printf("API_FP_ULE_DTR_IND\n");
 		break;
@@ -1043,7 +1062,7 @@ void handle_client_packet(struct bufferevent *bev, client_packet *p) {
 
 	case ZWITCH:
 		printf("SWITCH %d\n", p->data);
-		//ule_data_req(p->data);
+		ule_data_req(p->data);
 		break;
 
 	case DELETE_HSET:
