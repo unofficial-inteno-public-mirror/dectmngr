@@ -63,74 +63,6 @@ void ApiBuildInfoElement(ApiInfoElementType **IeBlockPtr,
 
 int switch_state_on = 1;
 
-/* typedef struct __attribute__((__packed__)) ApiFpUleInitReqType */
-/* { */
-/* 	RosPrimitiveType Primitive; */
-/* 	rsuint16 MaxUlpDevices; */
-/* 	rsuint16 DlBuffers; */
-/* 	rsuint8 DlBufferSize; */
-/* 	rsuint16 UlBuffers; */
-/* 	rsuint8 UlBufferSize; */
-/* } ApiFpUleInitReqType; */
-
-
-/* typedef struct __attribute__((__packed__)) ApiFpUleServiceIndType */
-/* { */
-/* 	RosPrimitiveType Primitive; */
-/* 	rsuint16 PpNumber; */
-/* 	rsuint16 Bandwidth; */
-/* 	rsuint8 DownlinkRedundant; */
-/* 	rsuint16 ContentionLatency; */
-/* 	rsuint8 MaxDutyCycle; */
-/* 	rsbool AField; */
-/* 	rsbool Bfield_Full; */
-/* 	rsbool Bfield_Long; */
-/* 	rsbool Bfield_Double; */
-/* } ApiFpUleServiceIndType; */
-
-
-/* typedef struct __attribute__((__packed__)) ApiFpUleServiceResType */
-/* { */
-/* 	RosPrimitiveType Primitive; */
-/* 	rsuint16 PpNumber; */
-/* 	RsStatusType Status; */
-/* 	rsuint8 UlpFrameLenDown; */
-/* 	rsuint16 DownlinkFrame; */
-/* 	rsuint8 DownLinkRedundant; */
-/* 	rsuint8 UlpFrameLenUp; */
-/* 	rsuint16 UplinkStartFrame; */
-/*        	rsuint16 UplinkEndFrame; */
-/* 	rsuint8 Slotsize; */
-/* } ApiFpUleServiceResType; */
-
-
-
-/* typedef struct __attribute__((__packed__)) ApiFpUleDataReqType */
-/* { */
-/* 	RosPrimitiveType Primitive; */
-/* 	rsuint16 PpNumber; */
-/* 	rsuint8 DlcCtrl; */
-/* 	rsuint8 Length; */
-/* 	rsuint8 Data[19]; */
-/* } ApiFpUleDataReqType; */
-
-
-/* typedef struct __attribute__((__packed__)) ApiFpUleDataIndType */
-/* { */
-/* 	RosPrimitiveType Primitive; */
-/* 	rsuint16 PpNumber; */
-/* 	rsuint8 Length; */
-/* 	rsuint8 DataType; */
-/* 	rsuint8 Sensor; */
-/* 	rsuint16 Counter; */
-/* 	rsuint8 State; */
-/* 	rsuint8 Power_h; */
-/* 	rsuint16 Power_l; */
-/* 	rsuint16 RMSVoltage; */
-/* 	rsuint16 RMSCurrent; */
-/* 	rsuint32 EnergyFwd; */
-/* 	rsuint32 EnergyRev; */
-/* } ApiFpUleDataIndType; */
 
 
 
@@ -201,7 +133,7 @@ static send_client(struct bufferevent *bev, uint8_t status) {
 }
 
 
-static void _write_dect(void *data, int size) {
+static void write_dect(void *data, int size) {
 
     int i;
     unsigned char* cdata = (unsigned char*)data;
@@ -221,47 +153,11 @@ static void _write_dect(void *data, int size) {
 }
 
 
-static int write_dect2(int header) {
-	
-	unsigned char o_buf[2];
-
-	*(o_buf + 0) = (unsigned char) ((header&0xff00)>>8); // Primitive MSB
-	*(o_buf + 1) = (unsigned char) (header&0x00ff);      // Primitive LSB
-
-	_write_dect(o_buf, 2);
-}
-
-
-static int write_dect3(int header, int arg) {
-	
-	unsigned char o_buf[3];
-
-	*(o_buf + 0) = (unsigned char) ((header&0xff00)>>8); // Primitive MSB
-	*(o_buf + 1) = (unsigned char) (header&0x00ff);      // Primitive LSB
-	*(o_buf + 2) = arg; //disable registration
-
-	_write_dect(o_buf, 3);
-}
-
-
-static int write_dect5(int header, int arg) {
-	
-	unsigned char o_buf[5];
-	
-	*(o_buf + 0) = (unsigned char) ((header&0xff00)>>8); // Primitive MSB
-	*(o_buf + 1) = (unsigned char) (header&0x00ff);      // Primitive LSB
-	*(o_buf + 2) = arg; //disable registration
-        *(o_buf + 3) = 0;
-	*(o_buf + 4) = 0;
-
-	_write_dect(o_buf, 5);
-}
-
-
 static void list_handsets(void) {
-  
+	
+  ApiFpMmGetRegistrationCountReqType m = { .Primitive = API_FP_MM_GET_REGISTRATION_COUNT_REQ, .StartTerminalId = 0};
 	printf("list_handsets\n");
-	write_dect2(API_FP_MM_GET_REGISTRATION_COUNT_REQ);
+	write_dect(&m, sizeof(m));
 }
 
 
@@ -276,7 +172,7 @@ static void ule_start(void) {
 	m->MaxUlpDevices = 0xff;
 
 	printf("ule_start\n");
-	_write_dect(m, sizeof(ApiFpUleInitReqType));
+	write_dect(m, sizeof(ApiFpUleInitReqType));
 }
 
 
@@ -357,95 +253,12 @@ static void ping_handset_start(int handset) {
 	m->Signal = API_CC_SIGNAL_ALERT_ON_PATTERN_2;
 	m->InfoElementLength = 0;
 					  
-	_write_dect(m, sizeof(ApiFpCcSetupReqType));
+	write_dect(m, sizeof(ApiFpCcSetupReqType));
 	free(m);
 	  
 }
 
 
-
-/* static void ping_handset_start(int handset) { */
-
-/* 	ApiCallingNameType * pCallingNameIe    = NULL; */
-/* 	ApiInfoElementType * pingIeBlockPtr    = NULL; */
-/* 	ApiFpCcSetupReqType * pingMailPtr      = NULL; */
-/* 	unsigned short pingIeBlockLength       = 0; */
-/* 	char callingName[]                     = "HANDSET LOCATOR"; */
-/* 	int callIdx; */
-
-/* 	/\************************************************ */
-/* 	 * create API_IE_CALLING_PARTY_NAME infoElement * */
-/* 	 ************************************************\/ */
-
-/* 	pCallingNameIe = malloc( (sizeof(ApiCallingNameType) - 1) + (strlen(callingName)+1) ); */
-
-/* 	if(pCallingNameIe != NULL ) { */
-/* 			pCallingNameIe->UsedAlphabet     = AUA_DECT; */
-/* 			pCallingNameIe->PresentationInd  = API_PRESENTATION_HANSET_LOCATOR; */
-/* 			pCallingNameIe->ScreeningInd     = API_NETWORK_PROVIDED; */
-/* 			pCallingNameIe->NameLength       = strlen(callingName); */
-/* 			memcpy( &(pCallingNameIe->Name[0]), callingName, (strlen(callingName)+1) ); */
-
-/* 			/\* Add to infoElement block *\/ */
-/* 			ApiBuildInfoElement( &pingIeBlockPtr, */
-/* 					     &pingIeBlockLength, */
-/* 					     API_IE_CALLING_PARTY_NAME, */
-/* 					     ((sizeof(ApiCallingNameType) - 1) + (strlen(callingName)+1) ), */
-/* 					     (unsigned char*)pCallingNameIe); */
-
-/* 			/\* free infoElement *\/ */
-/* 			free(pCallingNameIe); */
-
-/* 			if(pingIeBlockPtr == NULL) { */
-/* 				printf("dectCallMgrSetupPingingCall: ApiBuildInfoElement FAILED for API_IE_CALLING_PARTY_NAME!!\n"); */
-/* 				return; */
-/* 			} */
-/* 	} else { */
-/* 		printf("dectCallMgrSetupPingingCall: malloc FAILED for API_IE_CALLING_PARTY_NAME!!\n"); */
-/* 		return; */
-/* 	} */
-
-/* 	/\***************************************************** */
-/* 	 * create API_FP_CC_SETUP_REQ mail * */
-/* 	 *****************************************************\/ */
-/* 	if(pingIeBlockLength > 0) { */
-/* 		/\* Allocate memory for mail *\/ */
-/* 		pingMailPtr = (ApiFpCcSetupReqType *) malloc( (sizeof(ApiFpCcSetupReqType)-1) + pingIeBlockLength ); */
-/* 		if (pingMailPtr != NULL) { */
-
-/* 			/\* Fillout mail contents *\/ */
-/* 			((ApiFpCcSetupReqType *) pingMailPtr)->Primitive    = API_FP_CC_SETUP_REQ; */
-/* 			((ApiFpCcSetupReqType *) pingMailPtr)->TerminalId = handset; */
-/* 			((ApiFpCcSetupReqType *) pingMailPtr)->BasicService = API_BASIC_SPEECH; */
-/* 			((ApiFpCcSetupReqType *) pingMailPtr)->CallClass    = API_CC_NORMAL; */
-/* 			((ApiFpCcSetupReqType *) pingMailPtr)->AudioId.SourceTerminalId     = 0; /\* 0 is the base station id *\/ */
-/* 			((ApiFpCcSetupReqType *) pingMailPtr)->Signal       = API_CC_SIGNAL_ALERT_ON_PATTERN_2; */
-
-/* 			/\* Copy over infoElements *\/ */
-/* 			memcpy( &(((ApiFpCcSetupReqType *) pingMailPtr)->InfoElement[0]), pingIeBlockPtr, pingIeBlockLength ); */
-/* 			ApiFreeInfoElement( &pingIeBlockPtr ); */
-
-/* 			((ApiFpCcSetupReqType *) pingMailPtr)->InfoElementLength = pingIeBlockLength; */
-/* 		} else { */
-/* 			printf("dectCallMgrSetupPingingCall: No more memory available for API_FP_CC_SETUP_REQ!!!\n"); */
-/* 			return; */
-/* 		} */
-/* 	} else { */
-/* 		printf("dectCallMgrSetupPingingCall: zero pingIeBlockLength!!!\n"); */
-/* 		ApiFreeInfoElement( &pingIeBlockPtr ); */
-/* 		return; */
-/* 	} */
-
-/* 	/\* Send the mail *\/ */
-/* 	printf("OUTPUT: API_FP_CC_SETUP_REQ (ping)\n"); */
-/* 	_write_dect( (unsigned char *)pingMailPtr, (sizeof(ApiFpCcSetupReqType)-1) + pingIeBlockLength ); */
-/* } */
-
-
-/* static void get_handset_ipui(int handset) {   */
-
-/* 	write_dect3(API_FP_MM_GET_HANDSET_IPUI_REQ, handset); */
-/* } */
 
 
 static void get_handset_ipui(int handset)
@@ -454,7 +267,7 @@ static void get_handset_ipui(int handset)
 
 	m->Primitive = API_FP_MM_GET_HANDSET_IPUI_REQ;
 	m->TerminalId = handset;
-	_write_dect((unsigned char *)m, sizeof(ApiFpMmGetHandsetIpuiReqType));
+	write_dect((unsigned char *)m, sizeof(ApiFpMmGetHandsetIpuiReqType));
 
 }
 
@@ -503,7 +316,7 @@ static void ping_handset_stop(struct event *ev, short error, void *arg) {
 	m->InfoElement[1] = NULL;
 
 	printf("API_FP_CC_RELEASE_REQ\n");
-	_write_dect(m, sizeof(ApiFpCcReleaseReqType));
+	write_dect(m, sizeof(ApiFpCcReleaseReqType));
 	free(m);
 }
 
@@ -522,10 +335,13 @@ static void setup_cfm(unsigned char *b) {
 
 
 static void register_handsets_start(void) {
+	
+	ApiFpMmSetRegistrationModeReqType m = { .Primitive = API_FP_MM_SET_REGISTRATION_MODE_REQ, .RegistrationEnabled = true, .DeleteLastHandset = false};
+
 	printf("register_handsets_start\n");
 	if (status.dect_init) {
 		call_hotplug(REG_START);
-		write_dect3(API_FP_MM_SET_REGISTRATION_MODE_REQ, 1);
+		write_dect(&m, sizeof(m));
 	}
 }
 
@@ -538,11 +354,15 @@ static void init_cfm(void) {
 
 
 static void register_handsets_stop(void) {
+
+	ApiFpMmSetRegistrationModeReqType m = { .Primitive = API_FP_MM_SET_REGISTRATION_MODE_REQ, .RegistrationEnabled = false, .DeleteLastHandset = false};
+
+
 	printf("register_handsets_stop\n");
 	if (status.dect_init) {
 		status.reg_mode = DISABLED;
 		call_hotplug(REG_STOP);
-		write_dect3(API_FP_MM_SET_REGISTRATION_MODE_REQ, 0);
+		write_dect(&m, sizeof(m));
 	}
 }
 
@@ -553,7 +373,7 @@ static void delete_hset(int handset) {
 
 	if (status.dect_init) {
 		printf("delete handset: %d\n", handset);
-		_write_dect(&m, sizeof(m));
+		write_dect(&m, sizeof(m));
 	}
 }
 
@@ -567,14 +387,6 @@ static void present_ind(unsigned char *mail) {
 	handset = ((ApiFpMmHandsetPresentIndType*) mail)->TerminalId;
 	length = ((ApiFpMmHandsetPresentIndType*) mail)->InfoElementLength;
 	printf("INPUT: API_FP_MM_HANDSET_PRESENT_IND from handset (%d)\n", handset);
-	/* printf("length: %d\n", length); */
-	
-	/* t = (ApiLinuxInitReqType*) malloc(sizeof(ApiFpMmHandsetPresentIndType)); */
-        /* t->Primitive = API_FP_MM_HANDSET_PRESENT_IND; */
-        /* t->TerminalId = 1; */
-	/* t->InfoElementLength = 46; */
-
-        /* _write_dect(t, sizeof(ApiFpMmHandsetPresentIndType)); */
 
 	status.handset[handset - 1].present = TRUE;
 }
@@ -636,7 +448,7 @@ static void ule_data_req(int switch_on) {
 
 
 	printf("API_FP_ULE_DATA_REQ\n");
-	_write_dect((unsigned char *)r, sizeof(ApiFpUleDataReqType) + 18);
+	write_dect((unsigned char *)r, sizeof(ApiFpUleDataReqType) + 18);
 	free(r);
 
 	
