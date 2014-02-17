@@ -549,9 +549,11 @@ static void register_handsets_stop(void) {
 
 static void delete_hset(int handset) {  
 
+	ApiFpUleDeleteRegistrationReqType m = { .Primitive = API_FP_MM_DELETE_REGISTRATION_REQ, .TerminalId = handset};
+
 	if (status.dect_init) {
 		printf("delete handset: %d\n", handset);
-		write_dect3(API_FP_MM_DELETE_REGISTRATION_REQ, handset);
+		_write_dect(&m, sizeof(m));
 	}
 }
 
