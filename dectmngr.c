@@ -120,6 +120,16 @@ static void call_hotplug(uint8_t action)
 }
 
 
+static int bad_handsetnr(int handset) {
+
+	if ((handset <= 0) || (handset > MAX_NR_HANDSETS)) {
+		printf("Bad handset nr: %d\n", handset);
+		return 1;
+	}
+	return 0;
+}
+
+
 static send_client(struct bufferevent *bev, uint8_t status) {
 	
 	packet_t *p;
@@ -278,6 +288,8 @@ static void registration_count_cfm(unsigned char *mail) {
 	int i, handset;
 	
 	printf("INPUT: API_FP_MM_GET_REGISTRATION_COUNT_CFM\n");
+	
+
 
 	if (((ApiFpMmGetRegistrationCountCfmType*) mail)->Status == RSS_SUCCESS) {
 
@@ -288,6 +300,10 @@ static void registration_count_cfm(unsigned char *mail) {
 		for (i = 0 ; i < (((ApiFpMmGetRegistrationCountCfmType*) mail)->TerminalIdCount ) ; i++ ) {
 			 
 			handset = ((ApiFpMmGetRegistrationCountCfmType*) mail)->TerminalId[i];
+
+			if (bad_handsetnr(handset))
+				return;
+
 			status.handset[handset - 1].registered = TRUE;
 		}
 		 
@@ -304,6 +320,10 @@ static void ping_handset_stop(struct event *ev, short error, void *arg) {
 
 	int *handset = arg;
 	ApiFpCcReleaseReqType *m;
+
+	if (bad_handsetnr(handset))
+		return;
+
 
 	status.handset[(*handset) - 1].pinging = FALSE;
 
@@ -387,6 +407,9 @@ static void present_ind(unsigned char *mail) {
 	handset = ((ApiFpMmHandsetPresentIndType*) mail)->TerminalId;
 	length = ((ApiFpMmHandsetPresentIndType*) mail)->InfoElementLength;
 	printf("INPUT: API_FP_MM_HANDSET_PRESENT_IND from handset (%d)\n", handset);
+	
+	if (bad_handsetnr(handset))
+		return;
 
 	status.handset[handset - 1].present = TRUE;
 }
@@ -398,6 +421,9 @@ static void delete_registration_cfm(unsigned char *mail) {
 
 	handset = ((ApiFpMmDeleteRegistrationCfmType*) mail)->TerminalId;
 	
+	if (bad_handsetnr(handset))
+		return;
+
 	printf("deleted handset: %d\n", handset);
 	status.handset[handset - 1].registered = FALSE;
 	status.handset[handset - 1].present = FALSE;
@@ -412,6 +438,9 @@ static void connect_ind(unsigned char *buf) {
 	unsigned char o_buf[5];
 
 	/* handset = ((ApiFpCcConnectCfmType*) buf)->CallReference.HandsetId; */
+
+	if (bad_handsetnr(handset))
+		return;
 	
 	if (status.handset[(handset) - 1].pinging == TRUE)
 		status.handset[(handset) - 1].pinging = FALSE;
@@ -533,6 +562,10 @@ static void handset_ipui_cfm(unsigned char *mail) {
 
 	handset = ((ApiFpMmGetHandsetIpuiCfmType *) mail)->TerminalId;
 
+	if (bad_handsetnr(handset))
+		return;
+
+
 	for (i = 0; i < 5; i++)
 		status.handset[handset - 1].ipui[i] = ((ApiFpMmGetHandsetIpuiCfmType *) mail)->IPUI[i];
 	 
@@ -560,6 +593,9 @@ static void ping_handset(int handset) {
 	struct timeval tv = {20,0};
 	struct event *timeout;
 	
+	if (bad_handsetnr(handset))
+		return;
+
 	printf("ping_handset\n");
 	status.handset[handset - 1].pinging = TRUE;
 

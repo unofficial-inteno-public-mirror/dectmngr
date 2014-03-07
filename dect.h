@@ -5,7 +5,7 @@
 #define MAX_MAIL_SIZE 4098
 #define MAX_LISTENERS 10
 #define PKT_DATA_SIZE 100
-#define MAX_NR_HSETS 20
+#define MAX_NR_HANDSETS 20
 
 #define MAX(a,b) ((a) > (b) ? (a) : (b))
 
@@ -99,7 +99,7 @@ struct status_packet {
 	PACKET_HEADER
 	uint8_t dect_init;
 	uint8_t reg_mode;
-	struct hset handset[MAX_NR_HSETS];
+	struct hset handset[MAX_NR_HANDSETS];
 };
 
 
