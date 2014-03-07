@@ -46,7 +46,7 @@ static void status_packet(struct status_packet *p) {
 
 	int i, j;
 
-	for (i = 0; i < MAX_NR_HSETS; i++) {
+	for (i = 0; i < MAX_NR_HANDSETS; i++) {
 		printf("hset: %2d", i + 1);
 
 		if (p->handset[i].registered == TRUE) {
@@ -101,7 +101,7 @@ static void status_packet_json(struct status_packet *p) {
 
         json_object *hset_a = json_object_new_array();
 
-	for (i = 0; i < MAX_NR_HSETS; i++) {
+	for (i = 0; i < MAX_NR_HANDSETS; i++) {
 		
 		if (p->handset[i].registered == TRUE) {
 			json_object *handset = json_object_new_object();
