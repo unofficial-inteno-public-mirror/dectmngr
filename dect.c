@@ -101,7 +101,7 @@ static void status_packet_json(struct status_packet *p) {
 
         json_object *hset_a = json_object_new_array();
 
-	for (i = 0; i < MAX_NR_HANDSETS; i++) {
+	for (i = 0; i < MAX_NR_PHONES; i++) {
 		
 		if (p->handset[i].registered == TRUE) {
 			json_object *handset = json_object_new_object();
@@ -137,6 +137,48 @@ static void status_packet_json(struct status_packet *p) {
 	}
 
 	json_object_object_add(root, "handsets", hset_a);
+
+
+        json_object *ule_a = json_object_new_array();
+
+	for (i = MAX_NR_PHONES; i < MAX_NR_HANDSETS - MAX_NR_PHONES; i++) {
+		
+		if (p->handset[i].registered == TRUE) {
+			json_object *ule = json_object_new_object();
+			json_object *jint = json_object_new_int(i + 1);
+			json_object_object_add(ule, "handset", jint);
+			
+			for (j = 0; j < 5; j++)
+				snprintf(buf + 3*j, 6, "%2.2x ", p->handset[i].ipui[j]);
+
+			json_object *rfpi = json_object_new_string(buf);
+			json_object_object_add(ule, "rfpi", rfpi);
+
+			json_object *present;
+			if (p->handset[i].present == TRUE) {
+				 present = json_object_new_boolean(1);
+			} else
+				present = json_object_new_boolean(0);
+
+			json_object_object_add(ule, "present", present);
+
+			json_object *pinging;
+			if (p->handset[i].pinging == TRUE) {
+				 pinging = json_object_new_boolean(1);
+			} else
+				pinging = json_object_new_boolean(0);
+
+			json_object_object_add(ule, "pinging", pinging);
+
+
+			json_object_array_add(ule_a, ule);
+
+		}
+	}
+
+	json_object_object_add(root, "ule", ule_a);
+
+
 
         printf ("%s",json_object_to_json_string(root));	
 }
