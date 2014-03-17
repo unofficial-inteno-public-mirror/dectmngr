@@ -370,6 +370,8 @@ static void init_cfm(void) {
 
 	status.dect_init = true;
 	call_hotplug(DECT_INIT);
+
+	ule_start();
 }
 
 
