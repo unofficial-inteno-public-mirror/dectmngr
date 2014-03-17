@@ -851,11 +851,12 @@ void handle_dect_packet(unsigned char *buf) {
 
 	case API_FP_CC_FEATURES_CFM:
 		printf("API_FP_CC_FEATURES_CFM\n");
-		list_handsets();
+		ule_start();
  		break;
 
 	case API_FP_ULE_INIT_CFM:
 		printf("API_FP_ULE_INIT_CFM\n");
+		list_handsets();
 		break;
 
 	case API_FP_ULE_DATA_IND:
