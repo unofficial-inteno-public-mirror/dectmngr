@@ -179,7 +179,7 @@ static void ule_start(void) {
 		exit_failure("malloc");
 
 	m->Primitive = API_FP_ULE_INIT_REQ;
-	m->MaxUlpDevices = 0xff;
+	m->MaxUlpDevices = 0x4;
 
 	printf("ule_start\n");
 	write_dect(m, sizeof(ApiFpUleInitReqType));
@@ -190,6 +190,14 @@ void ApiFreeInfoElement(ApiInfoElementType **IeBlockPtr) {
 
 	free((void*)*IeBlockPtr);
 	*IeBlockPtr = NULL;
+}
+
+
+static void ule_init_cfm((ApiFpUleInitCfmType) *m) {
+
+	print("Status: %d\n", m->Status);
+	print("MaxUlpDevices: %d\n", m->MaxUlpDevices);
+	print("UpLinkBuffers: %d\n", m->UpLinkBuffers);
 }
 
 
@@ -856,6 +864,7 @@ void handle_dect_packet(unsigned char *buf) {
 
 	case API_FP_ULE_INIT_CFM:
 		printf("API_FP_ULE_INIT_CFM\n");
+		ule_init_cfm((ApiFpUleInitCfmType) *buf);
 		list_handsets();
 		break;
 
