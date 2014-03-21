@@ -841,12 +841,7 @@ void handle_dect_packet(unsigned char *buf) {
 		printf("API_FP_LINUX_INIT_CFM\n");
 		init_cfm();
 		ule_start();
-		//list_handsets();
 		break;
-
-	/* case API_GET_EEPROM_CFM: */
-	/* 	printf("API_FP_GET_EEPROM_CFM\n"); */
-	/* 	break; */
 
 	case API_FP_CC_RELEASE_CFM:
 		printf("API_FP_CC_RELEASE_CFM\n");
@@ -859,18 +854,16 @@ void handle_dect_packet(unsigned char *buf) {
 
 	case API_FP_CC_FEATURES_CFM:
 		printf("API_FP_CC_FEATURES_CFM\n");
-		//ule_start();
+		list_handsets();
  		break;
 
 	case API_FP_ULE_INIT_CFM:
 		printf("API_FP_ULE_INIT_CFM\n");
 		ule_init_cfm((ApiFpUleInitCfmType *) buf);
-		list_handsets();
 		break;
 
 	case API_FP_ULE_DATA_IND:
 		printf("API_FP_ULE_DATA_IND\n");
-		//ule_data_ind(buf);
 		break;
 
 	case API_FP_ULE_DATA_CFM:
