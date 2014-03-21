@@ -193,11 +193,11 @@ void ApiFreeInfoElement(ApiInfoElementType **IeBlockPtr) {
 }
 
 
-static void ule_init_cfm((ApiFpUleInitCfmType) *m) {
+static void ule_init_cfm(ApiFpUleInitCfmType *m) {
 
-	print("Status: %d\n", m->Status);
-	print("MaxUlpDevices: %d\n", m->MaxUlpDevices);
-	print("UpLinkBuffers: %d\n", m->UpLinkBuffers);
+	printf("Status: %d\n", m->Status);
+	printf("MaxUlpDevices: %d\n", m->MaxUlpDevices);
+	printf("UpLinkBuffers: %d\n", m->UpLinkBuffers);
 }
 
 
@@ -379,7 +379,6 @@ static void init_cfm(void) {
 	status.dect_init = true;
 	call_hotplug(DECT_INIT);
 
-	ule_start();
 }
 
 
@@ -841,6 +840,7 @@ void handle_dect_packet(unsigned char *buf) {
 	case API_LINUX_INIT_CFM:
 		printf("API_FP_LINUX_INIT_CFM\n");
 		init_cfm();
+		ule_start();
 		//list_handsets();
 		break;
 
@@ -859,12 +859,12 @@ void handle_dect_packet(unsigned char *buf) {
 
 	case API_FP_CC_FEATURES_CFM:
 		printf("API_FP_CC_FEATURES_CFM\n");
-		ule_start();
+		//ule_start();
  		break;
 
 	case API_FP_ULE_INIT_CFM:
 		printf("API_FP_ULE_INIT_CFM\n");
-		ule_init_cfm((ApiFpUleInitCfmType) *buf);
+		ule_init_cfm((ApiFpUleInitCfmType *) buf);
 		list_handsets();
 		break;
 
