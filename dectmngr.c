@@ -439,14 +439,14 @@ static void delete_registration_cfm(unsigned char *mail) {
 }
 
 
-static void connect_ind(unsigned char *buf) {
+static void connect_ind(ApiFpCcConnectIndType *m) {
 
 	int handset;
 	struct brcm_pvt *p;
 	struct brcm_subchannel *sub;
 	unsigned char o_buf[5];
 
-	/* handset = ((ApiFpCcConnectCfmType*) buf)->CallReference.HandsetId; */
+	handset = m->CallReference.Instance.Fp;
 
 	if (bad_handsetnr(handset))
 		return;
@@ -793,7 +793,7 @@ void handle_dect_packet(unsigned char *buf) {
 
 	case API_FP_CC_CONNECT_IND:
 		printf("API_FP_CC_CONNECT_IND\n");
-		connect_ind(buf);
+		connect_ind((ApiFpCcConnectIndType *)buf);
 		break;
 
 	case API_FP_CC_INFO_IND:
