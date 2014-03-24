@@ -328,24 +328,29 @@ static void ping_handset_stop(struct event *ev, short error, void *arg) {
 
 	int *handset = arg;
 	ApiFpCcReleaseReqType *m;
-
-	if (bad_handsetnr(handset))
-		return;
-
-
-	status.handset[(*handset) - 1].pinging = FALSE;
-
-	m = (ApiFpCcReleaseReqType *) malloc(sizeof(ApiFpCcReleaseReqType));
 	
-	m->Primitive = API_FP_CC_RELEASE_REQ;
-	m->CallReference = CallReference;
-	m->Reason = API_RR_UNEXPECTED_MESSAGE;
-	m->InfoElementLength = 0;
-	m->InfoElement[1] = NULL;
+	printf("ping_handset_stop\n");
+	if (bad_handsetnr(*handset)) {
+		free(handset);
+		return;
+	}
 
-	printf("API_FP_CC_RELEASE_REQ\n");
-	write_dect(m, sizeof(ApiFpCcReleaseReqType));
-	free(m);
+	if (status.handset[(*handset) - 1].pinging == TRUE) {
+		status.handset[(*handset) - 1].pinging = FALSE;
+
+		m = (ApiFpCcReleaseReqType *) malloc(sizeof(ApiFpCcReleaseReqType));
+	
+		m->Primitive = API_FP_CC_RELEASE_REQ;
+		m->CallReference = CallReference;
+		m->Reason = API_RR_UNEXPECTED_MESSAGE;
+		m->InfoElementLength = 0;
+		m->InfoElement[1] = NULL;
+
+		printf("API_FP_CC_RELEASE_REQ\n");
+		write_dect(m, sizeof(ApiFpCcReleaseReqType));
+		free(m);
+	}
+	free(handset);
 }
 
 
