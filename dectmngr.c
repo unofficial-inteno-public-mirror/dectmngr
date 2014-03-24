@@ -592,7 +592,7 @@ static void handset_ipui_cfm(unsigned char *mail) {
 
 static void registration(struct bufferevent *bev, client_packet *p) {
 
-	struct timeval tv = {60,0};
+	struct timeval tv = {180,0};
 	struct event *timeout;
 	
 	printf("enable registration\n");
