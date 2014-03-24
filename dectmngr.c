@@ -626,7 +626,7 @@ static void get_status(struct bufferevent *bev) {
 static void errorcb(struct bufferevent *bev, short error, void *ctx) {
 	
 	if (error & BEV_EVENT_EOF) {
-		printf("client connection closed\n");
+		//printf("client connection closed\n");
 	} else if (error & BEV_EVENT_ERROR) {
 	} else if (error & BEV_EVENT_TIMEOUT) {
 	}
@@ -648,7 +648,7 @@ static void do_accept(evutil_socket_t listener, short event, void *arg) {
 	} else if (fd > FD_SETSIZE) {
 		close(fd);
 	} else {
-		printf("accepted client connection\n");
+		//printf("accepted client connection\n");
 
 		/* Setup client bufferevent */
 		struct info *client_info = calloc(sizeof(struct info), 1);
@@ -900,7 +900,7 @@ void handle_client_packet(struct bufferevent *bev, client_packet *p) {
 	switch (p->type) {
 
 	case GET_STATUS:
-		printf("GET_STATUS\n");
+		//printf("GET_STATUS\n");
 		get_status(bev);
 		break;
 
