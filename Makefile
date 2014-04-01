@@ -41,7 +41,7 @@ all: main
 
 dynamic: all
 
-main: $(OBJS) dectproxy atohx dect dectmngr
+main: $(OBJS) dectproxy atohx dect dectmngr dectdbgd
 
 dectmngr: dectmngr.o
 	$(CC) $(LDFLAGS) $(INCLUDE_PATHS) -o $@ $< -levent
@@ -50,6 +50,9 @@ dect: dect.o
 	$(CC) $(LDFLAGS) $(INCLUDE_PATHS) -o $@ $< -ljson-c
 
 dectproxy: dectproxy.o
+	$(CC) $(LDFLAGS) $(INCLUDE_PATHS) -o $@ $<
+
+dectdbgd: dectdbgd.o
 	$(CC) $(LDFLAGS) $(INCLUDE_PATHS) -o $@ $<
 
 atohx: atohx.o
