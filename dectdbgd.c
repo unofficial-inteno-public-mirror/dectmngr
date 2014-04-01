@@ -117,16 +117,19 @@ int main(void)
 			struct dect_packet p;
 			p.type = DECT_PACKET;
 			ret = read(d, p.data, MAX_MAIL_SIZE);
-			printf("dect %d\n", ret);
+			//printf("dect %d\n", ret);
 			if (ret == -1) {
 				exit_failure("read");
 			} else {
 				p.size = ret + sizeof(struct packet_header);
-				for (i = 0; i <= fdmax; i++) {
+				for (i = 3; i <= fdmax; i++) {
 					/* If data is read from /dev/dect, send it to all clients */
 					if (i != l && i != d) {
-						if (send(i, p.data, p.size, 0) == -1)
+						if (send(i, p.data, p.size, 0) == -1) {
 							perror("send");
+						}
+						
+
 					}
 				}
 			}
@@ -146,7 +149,7 @@ int main(void)
 					FD_CLR(i, &master);
 				} else {
 					/* If data is read from client, send it to /dev/dect */
-					printf("client: %d\n", ret);
+					//printf("client: %d\n", ret);
 					if (write(d, buf, ret) == -1)
 						perror("write dect");
 				}
