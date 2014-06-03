@@ -201,6 +201,26 @@ static void ule_init_cfm(ApiFpUleInitCfmType *m) {
 }
 
 
+static void ule_pvc_config_ind(ApiFpUlePvcConfigIndType *m) {
+
+	ApiFpUleProtocol_t Protocol= { API_ULE_PROTOCOL_FUN_1, API_ULE_PROTOCOL_VERSION_0, 0};	
+	int size = sizeof(ApiFpUlePvcConfigResType) - sizeof(ApiFpUleProtocol_t) + sizeof(ApiFpUleProtocol_t);
+	ApiFpUlePvcConfigResType* r = (ApiFpUlePvcConfigResType*) malloc(size);
+
+	r->Primitive = API_FP_ULE_PVC_CONFIG_RES;
+	r->TerminalId = m->TerminalId;
+	r->Initiator = API_ULE_PP_INITIATOR;
+	r->MtuPtSize = API_ULE_MTU_SIZE_MAX;
+	r->MtuFtSize = API_ULE_MTU_SIZE_MAX;
+	r->MtuLifetime = API_ULE_MTU_LIFETIME_DEFAULT;
+	r->WindowSize = API_ULE_WINDOW_SIZE_DEFAULT;
+	r->ProtocolCount = 1;
+	memcpy(r->Protocol,&Protocol,sizeof(ApiFpUleProtocol_t));
+	write_dect(r, size);
+	free(r);
+}
+
+
 void ApiBuildInfoElement(ApiInfoElementType **IeBlockPtr,
                          rsuint16 *IeBlockLengthPtr,
                          ApiIeType Ie,
@@ -892,6 +912,22 @@ void handle_dect_packet(unsigned char *buf) {
 		printf("API_FP_ULE_ABORT_DATA_CFM\n");
 		break;
 
+	case API_FP_ULE_PVC_CONFIG_REJ:
+		printf("API_FP_ULE_PVC_CONFIG_REJ\n");
+		break;
+
+	case API_FP_ULE_PVC_CONFIG_IND:
+		printf("API_FP_ULE_PVC_CONFIG_IND\n");
+		ule_pvc_config_ind((ApiFpUlePvcConfigIndType *)buf);
+		break;
+
+	case API_FP_ULE_PVC_PENDING_IND:
+		printf("API_FP_ULE_PVC_PENDING_IND\n");
+		break;
+
+	case API_FP_ULE_PVC_IWU_DATA_IND:
+		printf("API_FP_ULE_PVC_IWU_DATA_IND\n");
+		break;
 		
 	default:
 		printf("Unknown packet\n");
