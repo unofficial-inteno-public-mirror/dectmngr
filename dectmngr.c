@@ -218,7 +218,39 @@ static void ule_pvc_config_ind(ApiFpUlePvcConfigIndType *m) {
 	memcpy(r->Protocol,&Protocol,sizeof(ApiFpUleProtocol_t));
 	write_dect(r, size);
 	free(r);
+	printf("API_FP_ULE_PVC_CONFIG_RES\n");
 }
+
+
+
+static void ule_pvc_data_iwu_ind(ApiFpUlePvcIwuDataIndType *m) {
+
+	ApiFpUlePage_t Page[2]= {{API_ULE_PAGING_CH, 17, 2},{0,0,0}};
+	int size = sizeof(ApiFpUlePvcIwuDataReqType) - 1 + m->InfoElementLength;
+	ApiFpUlePvcIwuDataReqType* r = (ApiFpUlePvcIwuDataReqType*) malloc(size);
+	
+
+	r->Primitive = API_FP_ULE_PVC_IWU_DATA_REQ;
+	r->TerminalId = m->TerminalId;
+	r->InfoElementLength = m->InfoElementLength;
+	memcpy(r->InfoElement,m->InfoElement,m->InfoElementLength);
+	write_dect(r, size);
+	free(r);
+	printf("API_FP_ULE_PVC_IWU_DATA_REQ\n");
+	
+	size = sizeof(ApiFpUlePvcPendingResType) - sizeof(ApiFpUlePage_t) + sizeof(ApiFpUlePage_t)*1;
+	ApiFpUlePvcPendingResType* r2 = (ApiFpUlePvcPendingResType*)malloc(size);
+	
+	r2->Primitive = API_FP_ULE_PVC_PENDING_RES;
+	r2->TerminalId = m->TerminalId;
+	r2->Status = API_FP_ULE_ERR_NO_ERROR;
+	r2->PageChCount = 1;
+	memcpy(r2->PageChannel,Page,sizeof(ApiFpUlePage_t)*1);
+	write_dect(r2, size);
+	free(r2);
+	printf("API_FP_ULE_PVC_PENDING_RES\n");
+}
+
 
 
 void ApiBuildInfoElement(ApiInfoElementType **IeBlockPtr,
@@ -927,6 +959,7 @@ void handle_dect_packet(unsigned char *buf) {
 
 	case API_FP_ULE_PVC_IWU_DATA_IND:
 		printf("API_FP_ULE_PVC_IWU_DATA_IND\n");
+		ule_pvc_data_iwu_ind((ApiFpUlePvcIwuDataIndType *)buf);
 		break;
 		
 	default:
