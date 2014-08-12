@@ -573,6 +573,13 @@ static void ule_data_cfm(ApiFpUleDataCfmType *m) {
 }
 
 
+static void ule_data_ind(ApiFpUleDataIndType *m) {
+
+	printf("TerminalId: %d\n", m->TerminalId);
+	printf("Length: %d\n", m->Length);
+	printf("%s\n", m->Data);
+}
+
 
 /* static void ule_data_ind(unsigned char *buf) { */
 
@@ -936,6 +943,7 @@ void handle_dect_packet(unsigned char *buf) {
 
 	case API_FP_ULE_DATA_IND:
 		printf("API_FP_ULE_DATA_IND\n");
+		ule_data_ind((ApiFpUleDataIndType *) buf);
 		break;
 
 	case API_FP_ULE_DATA_CFM:
