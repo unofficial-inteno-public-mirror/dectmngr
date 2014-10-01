@@ -890,6 +890,7 @@ void handle_dect_packet(unsigned char *buf) {
 	case API_FP_MM_HANDSET_PRESENT_IND:
 		printf("API_FP_MM_HANDSET_PRESENT_IND\n");
 		present_ind(buf);
+		list_handsets();
 		break;
 
 	case API_FP_MM_SET_REGISTRATION_MODE_CFM:
@@ -913,7 +914,7 @@ void handle_dect_packet(unsigned char *buf) {
 
 	case API_FP_MM_REGISTRATION_COMPLETE_IND:
 		printf("API_FP_MM_REGISTRATION_COMPLETE_IND\n");
-		list_handsets();
+		register_handsets_stop();
 		break;
 
 	case API_LINUX_INIT_CFM:
