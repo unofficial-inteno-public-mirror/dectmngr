@@ -41,10 +41,13 @@ all: main
 
 dynamic: all
 
-main: $(OBJS) dectproxy atohx dect dectmngr dectdbgd dectcalib
+main: $(OBJS) dectproxy atohx dect dectmngr dectdbgd dectcalib reader
 
 dectmngr: dectmngr.o
 	$(CC) $(LDFLAGS) $(INCLUDE_PATHS) -o $@ $< -levent
+
+reader: reader.o fp_las.o
+	$(CC) $(LDFLAGS) $(INCLUDE_PATHS) -o $@ $^ -levent
 
 dect: dect.o
 	$(CC) $(LDFLAGS) $(INCLUDE_PATHS) -o $@ $< -ljson-c
