@@ -96,10 +96,8 @@ type_entry_t ApiLasListIdType_list[] = {
 
 };
 
+
 type_entry_t ApiGenEveNotLcEventType_list[] = {
-
-
-
 	{ 
 		.type = API_GEN_LC_EVENT_NEW,
 		.name = "API_GEN_LC_EVENT_NEW",
@@ -114,9 +112,14 @@ type_entry_t ApiGenEveNotLcEventType_list[] = {
 	},
 	{ 
 		.type = API_GEN_LC_EVENT_RS_UNREAD,
+		.name = "API_GEN_LC_EVENT_RS_UNREAD",
+	},
+	{ 
+		.type = API_GEN_LC_EVENT_RS_READ,
 		.name = "API_GEN_LC_EVENT_RS_READ",
 	},
 };
+
 
 
 static const char * type_to_name(rsint8 type, type_entry_t * list, int list_size) {
@@ -137,7 +140,7 @@ static void fp_genevenot_event_ind( ApiFpGenevenotEventIndType * m) {
 
 	int i;
 
-	printf("API_FP_GENEVENOT_EVENT_IND\n");
+	printf("Primitive: API_FP_GENEVENOT_EVENT_IND\n");
 
 	printf("LineIdSubType: %x\n", m->LineIdSubType);
 	printf("LineIdValue: %d\n", m->LineIdValue);
@@ -149,13 +152,18 @@ static void fp_genevenot_event_ind( ApiFpGenevenotEventIndType * m) {
 	printf("EventType: %s\n", type_to_name(e->EventType, 
 					       ApiGenEveNotEventType_list, 
 					       ARRAY_SIZE(ApiGenEveNotEventType_list))); 
-	printf("EventSubType: %d\n", e->EventSubType);
 
 	/* List change event */
 	if (e->EventType == API_GEN_LIST_CHANGE_IND) {
 		printf("EventSubType: %s\n", type_to_name(e->EventSubType, 
 							  ApiLasListIdType_list,
-							  ARRAY_SIZE(ApiLasListIdType_list))); 
+							  ARRAY_SIZE(ApiLasListIdType_list)));
+
+		ApiGenEveNotListChangeAddDataType * l = (ApiGenEveNotListChangeAddDataType *) e->Data;
+		printf("ListEventType: %s\n", type_to_name(l->ListEventType,
+							  ApiGenEveNotLcEventType_list,
+							  ARRAY_SIZE(ApiGenEveNotLcEventType_list)));
+		
 	}
 	
 	printf("EventMultiplicity: %d\n", e->EventMultiplicity);
