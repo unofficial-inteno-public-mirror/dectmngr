@@ -26,7 +26,7 @@
 #include <Api/GenEveNot/ApiGenEveNot.h>
 #include <Api/Las/ApiLas.h>
 #include <Api/Linux/ApiLinux.h>
-//#include <Api/Project/ApiProject.h>
+#include <Api/FpGeneral/ApiFpGeneral.h>
 #include <Api/FpUle/ApiFpUle.h>
 
 
@@ -932,8 +932,8 @@ void handle_dect_packet(unsigned char *buf) {
 		setup_cfm(buf);
  		break;
 
-	case API_FP_CC_FEATURES_CFM:
-		printf("API_FP_CC_FEATURES_CFM\n");
+	case API_FP_SET_FEATURES_CFM:
+		printf("API_FP_SET_FEATURES_CFM\n");
 		list_handsets();
  		break;
 
