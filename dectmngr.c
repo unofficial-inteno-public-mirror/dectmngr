@@ -28,7 +28,7 @@
 #include <Api/Linux/ApiLinux.h>
 //#include <Api/Project/ApiProject.h>
 #include <Api/FpUle/ApiFpUle.h>
-
+#include <dectshimdrv.h>
 
 #include <json/json.h>
 
@@ -49,6 +49,7 @@ char *hotplug_cmd_path = DEFAULT_HOTPLUG_PATH;
 
 #define EARLY_BIT        (1 << 6)
 #define PAGING_ON        (1 << 7)
+#define DECT_NVS_SIZE 4096
 
 
 void handle_dect_packet(unsigned char *buf);
@@ -446,10 +447,90 @@ static void register_handsets_start(void) {
 }
 
 
+static void nvs_get_data( unsigned char *pNvsData )
+{
+	int fd, ret;
+	
+	if (pNvsData == NULL) {
+		
+		printf("%s: error %d\n", __FUNCTION__, errno);
+		return;
+	}
+
+	
+	fd = open("/etc/dect/nvs", O_RDONLY);
+	if (fd == -1) {
+		perror("open");
+		exit(EXIT_FAILURE);
+	}
+
+	ret = read(fd, pNvsData, DECT_NVS_SIZE);
+	if (ret == -1) {
+		perror("read");
+		exit(EXIT_FAILURE);
+	}
+
+	ret = close(fd);
+	if (ret == -1) {
+		perror("close");
+		exit(EXIT_FAILURE);
+	}
+
+
+}
+
+
+
+static int dect_init(void)
+{
+	int fd, r;
+	ApiLinuxInitReqType *t = NULL;
+	DECTSHIMDRV_INIT_PARAM parm;
+	
+	fd = open("/dev/dectshim", O_RDWR);
+  
+	if (fd == -1) {
+		printf("%s: open error %d\n", __FUNCTION__, errno);
+		return -1;
+	}
+
+
+	r = ioctl(fd, DECTSHIMIOCTL_INIT_CMD, &parm);
+	if (r != 0) {
+		printf("%s: ioctl error %d\n", __FUNCTION__, errno);
+	}
+
+	close(fd);
+  
+	printf("sizeof(ApiLinuxInitReqType): %d\n", sizeof(ApiLinuxInitReqType));
+
+	/* download the eeprom values to the DECT driver*/
+	t = (ApiLinuxInitReqType*) malloc(RSOFFSETOF(ApiLinuxInitReqType, Data) + DECT_NVS_SIZE);
+	t->Primitive = API_LINUX_INIT_REQ;
+	t->LengthOfData = DECT_NVS_SIZE;
+	nvs_get_data(t->Data);
+
+	write_dect(t, RSOFFSETOF(ApiLinuxInitReqType, Data) + DECT_NVS_SIZE);
+	
+
+	return r;
+}
+
+
 static void init_cfm(void) {
+
+	ApiFpCcFeaturesReqType *t = NULL;
 
 	status.dect_init = true;
 	call_hotplug(DECT_INIT);
+
+	t = (ApiFpCcFeaturesReqType*) malloc(sizeof(ApiFpCcFeaturesReqType));
+
+	t->Primitive = API_FP_CC_FEATURES_REQ;
+	t->ApiFpCcFeature = API_FP_CC_EXTENDED_TERMINAL_ID_SUPPORT;
+
+	write_dect(t, sizeof(ApiFpCcFeaturesReqType));
+	free(t);
 
 }
 
@@ -748,7 +829,7 @@ static void dect_event(struct bufferevent *bev, short events, void *ptr) {
 	if (events & BEV_EVENT_CONNECTED) {
 		printf("connected to dectproxy\n");
 	} else if (events & BEV_EVENT_ERROR) {
-		printf("error\n");
+		printf("error connecting to dectproxy\n");
 	}
 }
 
@@ -780,6 +861,21 @@ struct bufferevent *create_connection(int address, int port) {
 	bufferevent_enable(be, EV_READ | EV_WRITE);
 
 	return be;
+}
+
+
+static void start_protocol(void)
+{
+	unsigned char o_buf[3];
+
+
+	*(o_buf + 0) = ((API_FP_MM_START_PROTOCOL_REQ & 0xff00) >> 8);
+	*(o_buf + 1) = ((API_FP_MM_START_PROTOCOL_REQ & 0x00ff) >> 0);
+	*(o_buf + 2) = 0;
+
+	printf("API_FP_MM_START_PROTOCOL_REQ\n");
+	write_dect(o_buf, 3);
+
 }
 
 
@@ -933,6 +1029,7 @@ void handle_dect_packet(unsigned char *buf) {
 
 	case API_FP_CC_FEATURES_CFM:
 		printf("API_FP_CC_FEATURES_CFM\n");
+		start_protocol();
 		list_handsets();
  		break;
 
@@ -1035,8 +1132,8 @@ void handle_client_packet(struct bufferevent *bev, client_packet *p) {
 		break;
 
 	case INIT:
-		printf("INIT\n");
-		init_cfm();
+		printf("dect_init\n");
+		dect_init();
 		break;
 
 
