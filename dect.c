@@ -98,6 +98,7 @@ static void status_packet_json(struct status_packet *p) {
 
 	json_object *root = json_object_new_object();
 	json_object *reg_active;
+	json_object *radio_active;
 	
 	if (p->reg_mode == ENABLED)
 		reg_active = json_object_new_boolean(1);
@@ -106,6 +107,15 @@ static void status_packet_json(struct status_packet *p) {
 
 	
 	json_object_object_add(root, "reg_active", reg_active);
+
+	if (p->radio == ENABLED)
+		radio_active = json_object_new_boolean(1);
+	else
+		radio_active = json_object_new_boolean(0);
+
+	
+	json_object_object_add(root, "radio_active", radio_active);
+
 
 
         json_object *hset_a = json_object_new_array();
