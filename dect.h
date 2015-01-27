@@ -55,6 +55,7 @@ enum packet_type {
 	ULE_START,
 	INIT,
 	ZWITCH,
+	RADIO,
 };
 
 
@@ -100,6 +101,7 @@ struct status_packet {
 	PACKET_HEADER
 	uint8_t dect_init;
 	uint8_t reg_mode;
+	uint8_t radio;
 	struct hset handset[MAX_NR_HANDSETS];
 };
 

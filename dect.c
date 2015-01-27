@@ -22,6 +22,7 @@
 #define F_ULE          1 << 6
 #define F_INIT         1 << 7
 #define F_ZWITCH       1 << 8
+#define F_RADIO        1 << 9
 
 
 
@@ -79,6 +80,14 @@ static void status_packet(struct status_packet *p) {
 
 	if (p->reg_mode == DISABLED)
 		printf("reg_state: DISABLED\n");
+
+	if (p->radio == ENABLED)
+		printf("radio: ENABLED\n");
+
+	if (p->radio == DISABLED)
+		printf("radio: DISABLED\n");
+
+
 }
 
 
@@ -296,7 +305,7 @@ int main(int argc, char *argv[]) {
 	s = establish_connection();
 
 	/* Parse command line options */
-	while ((c = getopt (argc, argv, "rd:p:sjluiz:")) != -1) {
+	while ((c = getopt (argc, argv, "rd:p:sjluiz:x:")) != -1) {
 		switch (c) {
 		case 'r':
 			flags |= F_ACTIVATE_REG;
@@ -311,6 +320,10 @@ int main(int argc, char *argv[]) {
 			break;
 		case 'z':
 			flags |= F_ZWITCH;
+			switch_on = atoi(optarg);
+			break;
+		case 'x':
+			flags |= F_RADIO;
 			switch_on = atoi(optarg);
 			break;
 		case 's':
@@ -354,6 +367,11 @@ int main(int argc, char *argv[]) {
 	if (flags & F_ZWITCH) {
 		printf("switch %d\n", switch_on);
 		send_packet(s, ZWITCH, switch_on);
+	}
+
+	if (flags & F_RADIO) {
+		printf("radio %d\n", switch_on);
+		send_packet(s, RADIO, switch_on);
 	}
 
 	if (flags & F_GET_STATUS) {

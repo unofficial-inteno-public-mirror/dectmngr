@@ -68,6 +68,7 @@ int switch_state_on = 1;
 
 
 
+
 static void exit_failure(const char *format, ...)
 {
 #define BUF_SIZE 500
@@ -872,12 +873,40 @@ static void start_protocol(void)
 	*(o_buf + 0) = ((API_FP_MM_START_PROTOCOL_REQ & 0xff00) >> 8);
 	*(o_buf + 1) = ((API_FP_MM_START_PROTOCOL_REQ & 0x00ff) >> 0);
 	*(o_buf + 2) = 0;
-
+	
 	printf("API_FP_MM_START_PROTOCOL_REQ\n");
 	write_dect(o_buf, 3);
 
+	status.radio = ENABLED;
 }
 
+
+static void stop_protocol(void)
+{
+	unsigned char o_buf[3];
+
+
+	*(o_buf + 0) = ((API_FP_MM_STOP_PROTOCOL_REQ & 0xff00) >> 8);
+	*(o_buf + 1) = ((API_FP_MM_STOP_PROTOCOL_REQ & 0x00ff) >> 0);
+	*(o_buf + 2) = 0;
+	
+	printf("API_FP_MM_STOP_PROTOCOL_REQ\n");
+	write_dect(o_buf, 3);
+
+	status.radio = DISABLED;
+}
+
+
+
+static void dect_radio(int enable) {
+
+  if (enable) {
+    start_protocol();
+  } else {
+    stop_protocol();
+  }
+  
+}
 
 static void init_status(void) {
 
@@ -885,6 +914,7 @@ static void init_status(void) {
 	status.size = sizeof(status);
 	status.type = RESPONSE;
 	status.reg_mode = DISABLED;
+	status.radio = DISABLED;
 }
 
 
@@ -1113,6 +1143,11 @@ void handle_client_packet(struct bufferevent *bev, client_packet *p) {
 	case ZWITCH:
 		printf("SWITCH %d\n", p->data);
 		ule_data_req(p->data);
+		break;
+
+	case RADIO:
+		printf("RADIO %d\n", p->data);
+		dect_radio(p->data);
 		break;
 
 	case DELETE_HSET:
