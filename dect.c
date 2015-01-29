@@ -23,6 +23,7 @@
 #define F_INIT         1 << 7
 #define F_ZWITCH       1 << 8
 #define F_RADIO        1 << 9
+#define F_RELOAD_CONFIG 1 << 10
 
 
 
@@ -315,7 +316,7 @@ int main(int argc, char *argv[]) {
 	s = establish_connection();
 
 	/* Parse command line options */
-	while ((c = getopt (argc, argv, "rd:p:sjluiz:x:")) != -1) {
+	while ((c = getopt (argc, argv, "rd:p:sjluiz:x:c")) != -1) {
 		switch (c) {
 		case 'r':
 			flags |= F_ACTIVATE_REG;
@@ -338,6 +339,10 @@ int main(int argc, char *argv[]) {
 			break;
 		case 's':
 			flags |= F_GET_STATUS;
+			break;
+
+		case 'c':
+			flags |= F_RELOAD_CONFIG;
 			break;
 
 		case 'j':
@@ -382,6 +387,11 @@ int main(int argc, char *argv[]) {
 	if (flags & F_RADIO) {
 		printf("radio %d\n", switch_on);
 		send_packet(s, RADIO, switch_on);
+	}
+
+	if (flags & F_RELOAD_CONFIG) {
+	  printf("reload config\n");
+	  send_packet(s, RELOAD_CONFIG, 0);
 	}
 
 	if (flags & F_GET_STATUS) {

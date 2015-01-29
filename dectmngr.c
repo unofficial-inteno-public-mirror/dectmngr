@@ -88,6 +88,59 @@ static void exit_failure(const char *format, ...)
 	exit(EXIT_FAILURE);
 }
 
+static void write_dect(void *data, int size) {
+
+    int i;
+    unsigned char* cdata = (unsigned char*)data;
+    printf("[WDECT][%04d] - ",size);
+
+    for (i=0 ; i<size ; i++) {
+        printf("%02x ",cdata[i]);
+    }
+    printf("\n");
+
+    if (-1 == bufferevent_write(dect, data, size)) {
+	    perror("write to API failed");
+	    return;
+    }
+
+   return;
+}
+
+
+
+static void start_protocol(void)
+{
+	unsigned char o_buf[3];
+
+
+	*(o_buf + 0) = ((API_FP_MM_START_PROTOCOL_REQ & 0xff00) >> 8);
+	*(o_buf + 1) = ((API_FP_MM_START_PROTOCOL_REQ & 0x00ff) >> 0);
+	*(o_buf + 2) = 0;
+	
+	printf("API_FP_MM_START_PROTOCOL_REQ\n");
+	write_dect(o_buf, 3);
+
+	status.radio = ENABLED;
+}
+
+
+static void stop_protocol(void)
+{
+	unsigned char o_buf[3];
+
+
+	*(o_buf + 0) = ((API_FP_MM_STOP_PROTOCOL_REQ & 0xff00) >> 8);
+	*(o_buf + 1) = ((API_FP_MM_STOP_PROTOCOL_REQ & 0x00ff) >> 0);
+	*(o_buf + 2) = 0;
+	
+	printf("API_FP_MM_STOP_PROTOCOL_REQ\n");
+	write_dect(o_buf, 3);
+
+	status.radio = DISABLED;
+}
+
+
 
 static int load_cfg_file(void) {
   
@@ -112,6 +165,19 @@ static int load_cfg_file(void) {
   return 1;
 }
 
+
+static void reload_config(void)
+{
+  load_cfg_file();
+  
+  /* Only start radio protocol if radio is enabled in config */
+  if (config.radio) {
+    start_protocol();
+  } else {
+    stop_protocol();
+  }
+
+}
 
 static void call_hotplug(uint8_t action)
 {
@@ -172,24 +238,6 @@ static send_client(struct bufferevent *bev, uint8_t status) {
 }
 
 
-static void write_dect(void *data, int size) {
-
-    int i;
-    unsigned char* cdata = (unsigned char*)data;
-    printf("[WDECT][%04d] - ",size);
-
-    for (i=0 ; i<size ; i++) {
-        printf("%02x ",cdata[i]);
-    }
-    printf("\n");
-
-    if (-1 == bufferevent_write(dect, data, size)) {
-	    perror("write to API failed");
-	    return;
-    }
-
-   return;
-}
 
 
 static void list_handsets(void) {
@@ -892,36 +940,6 @@ struct bufferevent *create_connection(int address, int port) {
 }
 
 
-static void start_protocol(void)
-{
-	unsigned char o_buf[3];
-
-
-	*(o_buf + 0) = ((API_FP_MM_START_PROTOCOL_REQ & 0xff00) >> 8);
-	*(o_buf + 1) = ((API_FP_MM_START_PROTOCOL_REQ & 0x00ff) >> 0);
-	*(o_buf + 2) = 0;
-	
-	printf("API_FP_MM_START_PROTOCOL_REQ\n");
-	write_dect(o_buf, 3);
-
-	status.radio = ENABLED;
-}
-
-
-static void stop_protocol(void)
-{
-	unsigned char o_buf[3];
-
-
-	*(o_buf + 0) = ((API_FP_MM_STOP_PROTOCOL_REQ & 0xff00) >> 8);
-	*(o_buf + 1) = ((API_FP_MM_STOP_PROTOCOL_REQ & 0x00ff) >> 0);
-	*(o_buf + 2) = 0;
-	
-	printf("API_FP_MM_STOP_PROTOCOL_REQ\n");
-	write_dect(o_buf, 3);
-
-	status.radio = DISABLED;
-}
 
 
 
@@ -1086,7 +1104,12 @@ void handle_dect_packet(unsigned char *buf) {
 
 	case API_FP_CC_FEATURES_CFM:
 		printf("API_FP_CC_FEATURES_CFM\n");
-		start_protocol();
+
+		/* Only start radio protocol if radio is enabled in config */
+		if (config.radio) {
+		  start_protocol();
+		}
+		
 		list_handsets();
  		break;
 
@@ -1177,6 +1200,11 @@ void handle_client_packet(struct bufferevent *bev, client_packet *p) {
 		dect_radio(p->data);
 		break;
 
+	case RELOAD_CONFIG:
+	  printf("RELOAD_CONFIG\n");
+	  reload_config();
+		break;
+
 	case DELETE_HSET:
 		printf("DELETE_HSET %d\n", p->data);
 		delete_hset(p->data);
@@ -1204,6 +1232,8 @@ void handle_client_packet(struct bufferevent *bev, client_packet *p) {
 		break;
 	}
 }
+
+
 
 
 static void run(void) {

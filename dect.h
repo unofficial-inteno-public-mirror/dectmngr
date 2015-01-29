@@ -56,6 +56,7 @@ enum packet_type {
 	INIT,
 	ZWITCH,
 	RADIO,
+	RELOAD_CONFIG,
 };
 
 
@@ -104,6 +105,11 @@ struct status_packet {
 	uint8_t radio;
 	struct hset handset[MAX_NR_HANDSETS];
 };
+
+struct config {
+	uint8_t radio;
+};
+
 
 
 typedef struct packet_header {
