@@ -42,6 +42,7 @@ struct event_base *base;
 struct info *dect_info;
 struct status_packet status;
 static struct uci_context *uci_ctx = NULL;
+struct config config;
 
 ApiCallReferenceType CallReference;
 
@@ -99,8 +100,15 @@ static int load_cfg_file(void) {
   }
   
   radio = ucix_get_option(uci_ctx, "dect", "dect", "radio");
-  printf("radio: %s\n", radio);
   
+  if (!strcmp(radio, "1")) {
+    config.radio = true;
+  } else if (!strcmp(radio, "0")) {
+    config.radio = false;
+  } else {
+    exit_failure("Bad config parameter\n");
+  }
+
   return 1;
 }
 
