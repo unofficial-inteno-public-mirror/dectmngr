@@ -33,6 +33,7 @@
 #include <json/json.h>
 
 #include "dect.h"
+#include "ucix.h"
 
 
 /* Globals */
@@ -40,6 +41,8 @@ struct bufferevent *dect;
 struct event_base *base;
 struct info *dect_info;
 struct status_packet status;
+static struct uci_context *uci_ctx = NULL;
+
 ApiCallReferenceType CallReference;
 
 char *hotplug_cmd_path = DEFAULT_HOTPLUG_PATH;
@@ -68,7 +71,6 @@ int switch_state_on = 1;
 
 
 
-
 static void exit_failure(const char *format, ...)
 {
 #define BUF_SIZE 500
@@ -83,6 +85,23 @@ static void exit_failure(const char *format, ...)
 	
 	fprintf(stderr, "%s: %s\n", msg, err);
 	exit(EXIT_FAILURE);
+}
+
+
+static int load_cfg_file(void) {
+  
+  const char *radio;
+  
+  uci_ctx = ucix_init("dect");
+  
+  if(!uci_ctx) {
+    exit_failure("Error loading config file\n");
+  }
+  
+  radio = ucix_get_option(uci_ctx, "dect", "dect", "radio");
+  printf("radio: %s\n", radio);
+  
+  return 1;
 }
 
 
@@ -1187,6 +1206,8 @@ static void run(void) {
 
 	/* Init status */
 	init_status();
+
+	load_cfg_file();
 
 	if ((base = event_base_new()) == NULL)
 		exit_failure("event_base_new");
