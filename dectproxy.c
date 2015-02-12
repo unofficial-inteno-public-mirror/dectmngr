@@ -74,7 +74,7 @@ int main(void)
 
 	memset(&my_addr, 0, sizeof(my_addr));
 	my_addr.sin_family = AF_INET;
-	my_addr.sin_addr.s_addr = INADDR_LOOPBACK;
+	my_addr.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
 	my_addr.sin_port = htons(7777);
 
 

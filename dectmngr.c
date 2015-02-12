@@ -1262,7 +1262,7 @@ static void run(void) {
 
 	/* Open listening socket. */
 	sin.sin_family = AF_INET;
-	sin.sin_addr.s_addr = INADDR_LOOPBACK;
+	sin.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
 	sin.sin_port = htons(40713);
 
 	listener = socket(AF_INET, SOCK_STREAM, 0);
