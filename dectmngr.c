@@ -121,6 +121,7 @@ static void start_protocol(void)
 	printf("API_FP_MM_START_PROTOCOL_REQ\n");
 	write_dect(o_buf, 3);
 
+	call_hotplug(RADIO_ON);
 	status.radio = ENABLED;
 }
 
@@ -137,6 +138,7 @@ static void stop_protocol(void)
 	printf("API_FP_MM_STOP_PROTOCOL_REQ\n");
 	write_dect(o_buf, 3);
 
+	call_hotplug(RADIO_OFF);
 	status.radio = DISABLED;
 }
 
@@ -192,8 +194,11 @@ static void call_hotplug(uint8_t action)
 
 		/* Child process */
 		switch (action) {
-		case DECT_INIT :
-			setenv("ACTION", "dect_init", 1);
+		case RADIO_ON :
+			setenv("ACTION", "radio_on", 1);
+			break;
+		case RADIO_OFF :
+			setenv("ACTION", "radio_off", 1);
 			break;
 		case REG_START :
 			setenv("ACTION", "reg_start", 1);
@@ -516,7 +521,7 @@ static void register_handsets_start(void) {
 	ApiFpMmSetRegistrationModeReqType m = { .Primitive = API_FP_MM_SET_REGISTRATION_MODE_REQ, .RegistrationEnabled = true, .DeleteLastHandset = false};
 
 	printf("register_handsets_start\n");
-	if (status.dect_init) {
+	if (status.radio == ENABLED) {
 		call_hotplug(REG_START);
 		write_dect(&m, sizeof(m));
 	}
@@ -597,9 +602,6 @@ static void init_cfm(void) {
 
 	ApiFpCcFeaturesReqType *t = NULL;
 
-	status.dect_init = true;
-	call_hotplug(DECT_INIT);
-
 	t = (ApiFpCcFeaturesReqType*) malloc(sizeof(ApiFpCcFeaturesReqType));
 
 	t->Primitive = API_FP_CC_FEATURES_REQ;
@@ -608,6 +610,7 @@ static void init_cfm(void) {
 	write_dect(t, sizeof(ApiFpCcFeaturesReqType));
 	free(t);
 
+	status.dect_init = true;
 }
 
 
@@ -617,7 +620,7 @@ static void register_handsets_stop(void) {
 
 
 	printf("register_handsets_stop\n");
-	if (status.dect_init) {
+	if (status.radio == ENABLED) {
 		status.reg_mode = DISABLED;
 		call_hotplug(REG_STOP);
 		write_dect(&m, sizeof(m));

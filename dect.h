@@ -38,8 +38,10 @@ enum reg_state {
 
 enum dect_action {
 	DECT_INIT,
-	REG_START,
-	REG_STOP,
+	  REG_START,
+	  REG_STOP,
+	  RADIO_ON,
+	  RADIO_OFF,
 };
 
 
