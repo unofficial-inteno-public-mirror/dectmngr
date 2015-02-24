@@ -121,17 +121,14 @@ static void call_hotplug(uint8_t action)
 
 		/* Child process */
 		switch (action) {
-		case RADIO_ON :
-			setenv("ACTION", "radio_on", 1);
+		case LED_ON :
+			setenv("ACTION", "led_on", 1);
 			break;
-		case RADIO_OFF :
-			setenv("ACTION", "radio_off", 1);
+		case LED_OFF :
+			setenv("ACTION", "led_off", 1);
 			break;
-		case REG_START :
-			setenv("ACTION", "reg_start", 1);
-			break;
-		case REG_STOP :
-			setenv("ACTION", "reg_stop", 1);
+		case LED_BLINK :
+			setenv("ACTION", "led_blink", 1);
 			break;
 		default:
 			printf("Unknown action\n");
@@ -159,7 +156,7 @@ static void start_protocol(void)
 	printf("API_FP_MM_START_PROTOCOL_REQ\n");
 	write_dect(o_buf, 3);
 
-	call_hotplug(RADIO_ON);
+	call_hotplug(LED_ON);
 	status.radio = ENABLED;
 }
 
@@ -176,7 +173,7 @@ static void stop_protocol(void)
 	printf("API_FP_MM_STOP_PROTOCOL_REQ\n");
 	write_dect(o_buf, 3);
 
-	call_hotplug(RADIO_OFF);
+	call_hotplug(LED_OFF);
 	status.radio = DISABLED;
 }
 
@@ -523,7 +520,7 @@ static void register_handsets_start(void) {
 
 	if (status.radio == ENABLED) {
 	  printf("register_handsets_start\n");
-	  call_hotplug(REG_START);
+	  call_hotplug(LED_BLINK);
 	  write_dect(&m, sizeof(m));
 	} else {
 	  printf("can't start regmode: radio not enabled\n");
@@ -621,10 +618,14 @@ static void register_handsets_stop(void) {
 
 	ApiFpMmSetRegistrationModeReqType m = { .Primitive = API_FP_MM_SET_REGISTRATION_MODE_REQ, .RegistrationEnabled = false, .DeleteLastHandset = false};
 
-	printf("register_handsets_stop\n");
-	status.reg_mode = DISABLED;
-	call_hotplug(REG_STOP);
-	write_dect(&m, sizeof(m));
+	if (status.radio == ENABLED) {
+	  printf("register_handsets_stop\n");
+	  status.reg_mode = DISABLED;
+	  call_hotplug(LED_ON);
+	  write_dect(&m, sizeof(m));
+	} else {
+	  call_hotplug(LED_OFF);
+	}
 }
 
 

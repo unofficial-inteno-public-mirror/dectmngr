@@ -40,8 +40,9 @@ enum dect_action {
 	DECT_INIT,
 	  REG_START,
 	  REG_STOP,
-	  RADIO_ON,
-	  RADIO_OFF,
+	  LED_ON,
+	  LED_OFF,
+	  LED_BLINK,
 };
 
 
