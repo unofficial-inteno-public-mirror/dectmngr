@@ -108,6 +108,44 @@ static void write_dect(void *data, int size) {
 }
 
 
+static void call_hotplug(uint8_t action)
+{
+	char *argv[3];
+	int pid;
+
+	pid = fork();
+	if (pid > 0)
+		return;
+	
+	if (pid == 0) {
+
+		/* Child process */
+		switch (action) {
+		case RADIO_ON :
+			setenv("ACTION", "radio_on", 1);
+			break;
+		case RADIO_OFF :
+			setenv("ACTION", "radio_off", 1);
+			break;
+		case REG_START :
+			setenv("ACTION", "reg_start", 1);
+			break;
+		case REG_STOP :
+			setenv("ACTION", "reg_stop", 1);
+			break;
+		default:
+			printf("Unknown action\n");
+			return;
+		}
+	
+		argv[0] = hotplug_cmd_path;
+		argv[1] = "dect";
+		argv[2] = NULL;
+		execvp(argv[0], argv);
+		exit(127);
+	}
+}
+
 
 static void start_protocol(void)
 {
@@ -181,43 +219,6 @@ static void reload_config(void)
 
 }
 
-static void call_hotplug(uint8_t action)
-{
-	char *argv[3];
-	int pid;
-
-	pid = fork();
-	if (pid > 0)
-		return;
-	
-	if (pid == 0) {
-
-		/* Child process */
-		switch (action) {
-		case RADIO_ON :
-			setenv("ACTION", "radio_on", 1);
-			break;
-		case RADIO_OFF :
-			setenv("ACTION", "radio_off", 1);
-			break;
-		case REG_START :
-			setenv("ACTION", "reg_start", 1);
-			break;
-		case REG_STOP :
-			setenv("ACTION", "reg_stop", 1);
-			break;
-		default:
-			printf("Unknown action\n");
-			return;
-		}
-	
-		argv[0] = hotplug_cmd_path;
-		argv[1] = "dect";
-		argv[2] = NULL;
-		execvp(argv[0], argv);
-		exit(127);
-	}
-}
 
 
 static int bad_handsetnr(int handset) {
@@ -520,10 +521,12 @@ static void register_handsets_start(void) {
 	
 	ApiFpMmSetRegistrationModeReqType m = { .Primitive = API_FP_MM_SET_REGISTRATION_MODE_REQ, .RegistrationEnabled = true, .DeleteLastHandset = false};
 
-	printf("register_handsets_start\n");
 	if (status.radio == ENABLED) {
-		call_hotplug(REG_START);
-		write_dect(&m, sizeof(m));
+	  printf("register_handsets_start\n");
+	  call_hotplug(REG_START);
+	  write_dect(&m, sizeof(m));
+	} else {
+	  printf("can't start regmode: radio not enabled\n");
 	}
 }
 
@@ -618,13 +621,10 @@ static void register_handsets_stop(void) {
 
 	ApiFpMmSetRegistrationModeReqType m = { .Primitive = API_FP_MM_SET_REGISTRATION_MODE_REQ, .RegistrationEnabled = false, .DeleteLastHandset = false};
 
-
 	printf("register_handsets_stop\n");
-	if (status.radio == ENABLED) {
-		status.reg_mode = DISABLED;
-		call_hotplug(REG_STOP);
-		write_dect(&m, sizeof(m));
-	}
+	status.reg_mode = DISABLED;
+	call_hotplug(REG_STOP);
+	write_dect(&m, sizeof(m));
 }
 
 
