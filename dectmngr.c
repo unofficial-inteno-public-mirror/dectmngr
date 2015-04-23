@@ -28,11 +28,12 @@
 #include <Api/Linux/ApiLinux.h>
 #include <Api/FpGeneral/ApiFpGeneral.h>
 #include <Api/FpUle/ApiFpUle.h>
-
+#include <dectshimdrv.h>
 
 #include <json/json.h>
 
 #include "dect.h"
+#include "ucix.h"
 
 
 /* Globals */
@@ -40,6 +41,9 @@ struct bufferevent *dect;
 struct event_base *base;
 struct info *dect_info;
 struct status_packet status;
+static struct uci_context *uci_ctx = NULL;
+struct config config;
+
 ApiCallReferenceType CallReference;
 
 char *hotplug_cmd_path = DEFAULT_HOTPLUG_PATH;
@@ -49,6 +53,7 @@ char *hotplug_cmd_path = DEFAULT_HOTPLUG_PATH;
 
 #define EARLY_BIT        (1 << 6)
 #define PAGING_ON        (1 << 7)
+#define DECT_NVS_SIZE 4096
 
 
 void handle_dect_packet(unsigned char *buf);
@@ -83,6 +88,25 @@ static void exit_failure(const char *format, ...)
 	exit(EXIT_FAILURE);
 }
 
+static void write_dect(void *data, int size) {
+
+    int i;
+    unsigned char* cdata = (unsigned char*)data;
+    printf("[WDECT][%04d] - ",size);
+
+    for (i=0 ; i<size ; i++) {
+        printf("%02x ",cdata[i]);
+    }
+    printf("\n");
+
+    if (-1 == bufferevent_write(dect, data, size)) {
+	    perror("write to API failed");
+	    return;
+    }
+
+   return;
+}
+
 
 static void call_hotplug(uint8_t action)
 {
@@ -97,14 +121,14 @@ static void call_hotplug(uint8_t action)
 
 		/* Child process */
 		switch (action) {
-		case DECT_INIT :
-			setenv("ACTION", "dect_init", 1);
+		case LED_ON :
+			setenv("ACTION", "led_on", 1);
 			break;
-		case REG_START :
-			setenv("ACTION", "reg_start", 1);
+		case LED_OFF :
+			setenv("ACTION", "led_off", 1);
 			break;
-		case REG_STOP :
-			setenv("ACTION", "reg_stop", 1);
+		case LED_BLINK :
+			setenv("ACTION", "led_blink", 1);
 			break;
 		default:
 			printf("Unknown action\n");
@@ -118,6 +142,80 @@ static void call_hotplug(uint8_t action)
 		exit(127);
 	}
 }
+
+
+static void start_protocol(void)
+{
+	unsigned char o_buf[3];
+
+
+	*(o_buf + 0) = ((API_FP_MM_START_PROTOCOL_REQ & 0xff00) >> 8);
+	*(o_buf + 1) = ((API_FP_MM_START_PROTOCOL_REQ & 0x00ff) >> 0);
+	*(o_buf + 2) = 0;
+	
+	printf("API_FP_MM_START_PROTOCOL_REQ\n");
+	write_dect(o_buf, 3);
+
+	call_hotplug(LED_ON);
+	status.radio = ENABLED;
+}
+
+
+static void stop_protocol(void)
+{
+	unsigned char o_buf[3];
+
+
+	*(o_buf + 0) = ((API_FP_MM_STOP_PROTOCOL_REQ & 0xff00) >> 8);
+	*(o_buf + 1) = ((API_FP_MM_STOP_PROTOCOL_REQ & 0x00ff) >> 0);
+	*(o_buf + 2) = 0;
+	
+	printf("API_FP_MM_STOP_PROTOCOL_REQ\n");
+	write_dect(o_buf, 3);
+
+	call_hotplug(LED_OFF);
+	status.radio = DISABLED;
+}
+
+
+
+static int load_cfg_file(void) {
+  
+  const char *radio;
+  
+  uci_ctx = ucix_init("dect");
+  
+  if(!uci_ctx) {
+    exit_failure("Error loading config file\n");
+  }
+  
+  radio = ucix_get_option(uci_ctx, "dect", "dect", "radio");
+  
+  if (!strcmp(radio, "1")) {
+    config.radio = true;
+  } else if (!strcmp(radio, "0")) {
+    config.radio = false;
+  } else {
+    exit_failure("Bad config parameter\n");
+  }
+
+  return 1;
+}
+
+
+static void reload_config(void)
+{
+  load_cfg_file();
+  
+  /* Only start radio protocol if radio is enabled in config */
+  if (config.radio) {
+    start_protocol();
+  } else {
+    stop_protocol();
+  }
+
+}
+
 
 
 static int bad_handsetnr(int handset) {
@@ -143,24 +241,6 @@ static send_client(struct bufferevent *bev, uint8_t status) {
 }
 
 
-static void write_dect(void *data, int size) {
-
-    int i;
-    unsigned char* cdata = (unsigned char*)data;
-    printf("[WDECT][%04d] - ",size);
-
-    for (i=0 ; i<size ; i++) {
-        printf("%02x ",cdata[i]);
-    }
-    printf("\n");
-
-    if (-1 == bufferevent_write(dect, data, size)) {
-	    perror("write to API failed");
-	    return;
-    }
-
-   return;
-}
 
 
 static void list_handsets(void) {
@@ -438,19 +518,100 @@ static void register_handsets_start(void) {
 	
 	ApiFpMmSetRegistrationModeReqType m = { .Primitive = API_FP_MM_SET_REGISTRATION_MODE_REQ, .RegistrationEnabled = true, .DeleteLastHandset = false};
 
-	printf("register_handsets_start\n");
-	if (status.dect_init) {
-		call_hotplug(REG_START);
-		write_dect(&m, sizeof(m));
+	if (status.radio == ENABLED) {
+	  printf("register_handsets_start\n");
+	  status.reg_mode = ENABLED;
+	  call_hotplug(LED_BLINK);
+	  write_dect(&m, sizeof(m));
+	} else {
+	  printf("can't start regmode: radio not enabled\n");
 	}
+}
+
+
+static void nvs_get_data( unsigned char *pNvsData )
+{
+	int fd, ret;
+	
+	if (pNvsData == NULL) {
+		
+		printf("%s: error %d\n", __FUNCTION__, errno);
+		return;
+	}
+
+	
+	fd = open("/etc/dect/nvs", O_RDONLY);
+	if (fd == -1) {
+		perror("open");
+		exit(EXIT_FAILURE);
+	}
+
+	ret = read(fd, pNvsData, DECT_NVS_SIZE);
+	if (ret == -1) {
+		perror("read");
+		exit(EXIT_FAILURE);
+	}
+
+	ret = close(fd);
+	if (ret == -1) {
+		perror("close");
+		exit(EXIT_FAILURE);
+	}
+
+
+}
+
+
+
+static int dect_init(void)
+{
+	int fd, r;
+	ApiLinuxInitReqType *t = NULL;
+	DECTSHIMDRV_INIT_PARAM parm;
+	
+	fd = open("/dev/dectshim", O_RDWR);
+  
+	if (fd == -1) {
+		printf("%s: open error %d\n", __FUNCTION__, errno);
+		return -1;
+	}
+
+
+	r = ioctl(fd, DECTSHIMIOCTL_INIT_CMD, &parm);
+	if (r != 0) {
+		printf("%s: ioctl error %d\n", __FUNCTION__, errno);
+	}
+
+	close(fd);
+  
+	printf("sizeof(ApiLinuxInitReqType): %d\n", sizeof(ApiLinuxInitReqType));
+
+	/* download the eeprom values to the DECT driver*/
+	t = (ApiLinuxInitReqType*) malloc(RSOFFSETOF(ApiLinuxInitReqType, Data) + DECT_NVS_SIZE);
+	t->Primitive = API_LINUX_INIT_REQ;
+	t->LengthOfData = DECT_NVS_SIZE;
+	nvs_get_data(t->Data);
+
+	write_dect(t, RSOFFSETOF(ApiLinuxInitReqType, Data) + DECT_NVS_SIZE);
+	
+
+	return r;
 }
 
 
 static void init_cfm(void) {
 
-	status.dect_init = true;
-	call_hotplug(DECT_INIT);
+	ApiFpSetFeaturesReqType *t = NULL;
 
+	t = (ApiFpSetFeaturesReqType*) malloc(sizeof(ApiFpSetFeaturesReqType));
+
+	t->Primitive = API_FP_SET_FEATURES_REQ;
+	t->ApiFpCcFeature = API_FP_CC_EXTENDED_TERMINAL_ID_SUPPORT;
+
+	write_dect(t, sizeof(ApiFpSetFeaturesReqType));
+	free(t);
+
+	status.dect_init = true;
 }
 
 
@@ -458,12 +619,14 @@ static void register_handsets_stop(void) {
 
 	ApiFpMmSetRegistrationModeReqType m = { .Primitive = API_FP_MM_SET_REGISTRATION_MODE_REQ, .RegistrationEnabled = false, .DeleteLastHandset = false};
 
+	status.reg_mode = DISABLED;
 
-	printf("register_handsets_stop\n");
-	if (status.dect_init) {
-		status.reg_mode = DISABLED;
-		call_hotplug(REG_STOP);
-		write_dect(&m, sizeof(m));
+	if (status.radio == ENABLED) {
+	  printf("register_handsets_stop\n");
+	  call_hotplug(LED_ON);
+	  write_dect(&m, sizeof(m));
+	} else {
+	  call_hotplug(LED_OFF);
 	}
 }
 
@@ -748,7 +911,7 @@ static void dect_event(struct bufferevent *bev, short events, void *ptr) {
 	if (events & BEV_EVENT_CONNECTED) {
 		printf("connected to dectproxy\n");
 	} else if (events & BEV_EVENT_ERROR) {
-		printf("error\n");
+		printf("error connecting to dectproxy\n");
 	}
 }
 
@@ -783,12 +946,26 @@ struct bufferevent *create_connection(int address, int port) {
 }
 
 
+
+
+
+static void dect_radio(int enable) {
+
+  if (enable) {
+    start_protocol();
+  } else {
+    stop_protocol();
+  }
+  
+}
+
 static void init_status(void) {
 
 	memset(&status, 0, sizeof(status));
 	status.size = sizeof(status);
 	status.type = RESPONSE;
 	status.reg_mode = DISABLED;
+	status.radio = DISABLED;
 }
 
 
@@ -934,6 +1111,12 @@ void handle_dect_packet(unsigned char *buf) {
 
 	case API_FP_SET_FEATURES_CFM:
 		printf("API_FP_SET_FEATURES_CFM\n");
+
+		/* Only start radio protocol if radio is enabled in config */
+		if (config.radio) {
+		  start_protocol();
+		}
+
 		list_handsets();
  		break;
 
@@ -1005,7 +1188,6 @@ void handle_client_packet(struct bufferevent *bev, client_packet *p) {
 
 	case REGISTRATION:
 		printf("REGISTRATION\n");
-		status.reg_mode = ENABLED;
 		registration(bev, p);
 		break;
 
@@ -1017,6 +1199,16 @@ void handle_client_packet(struct bufferevent *bev, client_packet *p) {
 	case ZWITCH:
 		printf("SWITCH %d\n", p->data);
 		ule_data_req(p->data);
+		break;
+
+	case RADIO:
+		printf("RADIO %d\n", p->data);
+		dect_radio(p->data);
+		break;
+
+	case RELOAD_CONFIG:
+	  printf("RELOAD_CONFIG\n");
+	  reload_config();
 		break;
 
 	case DELETE_HSET:
@@ -1036,8 +1228,8 @@ void handle_client_packet(struct bufferevent *bev, client_packet *p) {
 		break;
 
 	case INIT:
-		printf("INIT\n");
-		init_cfm();
+		printf("dect_init\n");
+		dect_init();
 		break;
 
 
@@ -1048,6 +1240,8 @@ void handle_client_packet(struct bufferevent *bev, client_packet *p) {
 }
 
 
+
+
 static void run(void) {
 
 	evutil_socket_t listener;
@@ -1056,6 +1250,8 @@ static void run(void) {
 
 	/* Init status */
 	init_status();
+
+	load_cfg_file();
 
 	if ((base = event_base_new()) == NULL)
 		exit_failure("event_base_new");

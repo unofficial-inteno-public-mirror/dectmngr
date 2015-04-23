@@ -43,8 +43,8 @@ dynamic: all
 
 main: $(OBJS) dectproxy atohx dect dectmngr dectdbgd dectcalib
 
-dectmngr: dectmngr.o
-	$(CC) $(LDFLAGS) $(INCLUDE_PATHS) -o $@ $< -levent
+dectmngr: dectmngr.o ucix.o
+	$(CC) $(LDFLAGS) $(INCLUDE_PATHS) -o $@ $^ -levent -luci
 
 dect: dect.o
 	$(CC) $(LDFLAGS) $(INCLUDE_PATHS) -o $@ $< -ljson-c

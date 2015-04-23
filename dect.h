@@ -38,8 +38,11 @@ enum reg_state {
 
 enum dect_action {
 	DECT_INIT,
-	REG_START,
-	REG_STOP,
+	  REG_START,
+	  REG_STOP,
+	  LED_ON,
+	  LED_OFF,
+	  LED_BLINK,
 };
 
 
@@ -55,6 +58,8 @@ enum packet_type {
 	ULE_START,
 	INIT,
 	ZWITCH,
+	RADIO,
+	RELOAD_CONFIG,
 };
 
 
@@ -100,8 +105,14 @@ struct status_packet {
 	PACKET_HEADER
 	uint8_t dect_init;
 	uint8_t reg_mode;
+	uint8_t radio;
 	struct hset handset[MAX_NR_HANDSETS];
 };
+
+struct config {
+	uint8_t radio;
+};
+
 
 
 typedef struct packet_header {

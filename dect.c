@@ -22,6 +22,8 @@
 #define F_ULE          1 << 6
 #define F_INIT         1 << 7
 #define F_ZWITCH       1 << 8
+#define F_RADIO        1 << 9
+#define F_RELOAD_CONFIG 1 << 10
 
 
 
@@ -79,6 +81,14 @@ static void status_packet(struct status_packet *p) {
 
 	if (p->reg_mode == DISABLED)
 		printf("reg_state: DISABLED\n");
+
+	if (p->radio == ENABLED)
+		printf("radio: ENABLED\n");
+
+	if (p->radio == DISABLED)
+		printf("radio: DISABLED\n");
+
+
 }
 
 
@@ -89,6 +99,7 @@ static void status_packet_json(struct status_packet *p) {
 
 	json_object *root = json_object_new_object();
 	json_object *reg_active;
+	json_object *radio_active;
 	
 	if (p->reg_mode == ENABLED)
 		reg_active = json_object_new_boolean(1);
@@ -97,6 +108,15 @@ static void status_packet_json(struct status_packet *p) {
 
 	
 	json_object_object_add(root, "reg_active", reg_active);
+
+	if (p->radio == ENABLED)
+		radio_active = json_object_new_boolean(1);
+	else
+		radio_active = json_object_new_boolean(0);
+
+	
+	json_object_object_add(root, "radio_active", radio_active);
+
 
 
         json_object *hset_a = json_object_new_array();
@@ -296,7 +316,7 @@ int main(int argc, char *argv[]) {
 	s = establish_connection();
 
 	/* Parse command line options */
-	while ((c = getopt (argc, argv, "rd:p:sjluiz:")) != -1) {
+	while ((c = getopt (argc, argv, "rd:p:sjluiz:x:c")) != -1) {
 		switch (c) {
 		case 'r':
 			flags |= F_ACTIVATE_REG;
@@ -313,8 +333,16 @@ int main(int argc, char *argv[]) {
 			flags |= F_ZWITCH;
 			switch_on = atoi(optarg);
 			break;
+		case 'x':
+			flags |= F_RADIO;
+			switch_on = atoi(optarg);
+			break;
 		case 's':
 			flags |= F_GET_STATUS;
+			break;
+
+		case 'c':
+			flags |= F_RELOAD_CONFIG;
 			break;
 
 		case 'j':
@@ -354,6 +382,16 @@ int main(int argc, char *argv[]) {
 	if (flags & F_ZWITCH) {
 		printf("switch %d\n", switch_on);
 		send_packet(s, ZWITCH, switch_on);
+	}
+
+	if (flags & F_RADIO) {
+		printf("radio %d\n", switch_on);
+		send_packet(s, RADIO, switch_on);
+	}
+
+	if (flags & F_RELOAD_CONFIG) {
+	  printf("reload config\n");
+	  send_packet(s, RELOAD_CONFIG, 0);
 	}
 
 	if (flags & F_GET_STATUS) {
