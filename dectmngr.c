@@ -601,12 +601,10 @@ static int dect_init(void)
 
 static void init_cfm(void) {
 
-	ApiFpSetFeaturesReqType *t = NULL;
-
-	t = (ApiFpSetFeaturesReqType*) malloc(sizeof(ApiFpSetFeaturesReqType));
+	ApiFpSetFeaturesReqType *t = (ApiFpSetFeaturesReqType*) malloc(sizeof(ApiFpSetFeaturesReqType));
 
 	t->Primitive = API_FP_SET_FEATURES_REQ;
-	t->ApiFpCcFeature = API_FP_CC_EXTENDED_TERMINAL_ID_SUPPORT;
+	t->ApiFpFeature = API_FP_CC_EXTENDED_TERMINAL_ID_SUPPORT;
 
 	write_dect(t, sizeof(ApiFpSetFeaturesReqType));
 	free(t);
