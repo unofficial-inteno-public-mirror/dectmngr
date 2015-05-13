@@ -565,37 +565,38 @@ static void nvs_get_data( unsigned char *pNvsData )
 
 static int dect_init(void)
 {
-	int fd, r;
-	ApiLinuxInitReqType *t = NULL;
-	DECTSHIMDRV_INIT_PARAM parm;
+/* 	int fd, r; */
+/* 	ApiLinuxInitReqType *t = NULL; */
+/* 	DECTSHIMDRV_INIT_PARAM parm; */
 	
-	fd = open("/dev/dectshim", O_RDWR);
+/* 	fd = open("/dev/dectshim", O_RDWR); */
   
-	if (fd == -1) {
-		printf("%s: open error %d\n", __FUNCTION__, errno);
-		return -1;
-	}
+/* 	if (fd == -1) { */
+/* 		printf("%s: open error %d\n", __FUNCTION__, errno); */
+/* 		return -1; */
+/* 	} */
 
 
-	r = ioctl(fd, DECTSHIMIOCTL_INIT_CMD, &parm);
-	if (r != 0) {
-		printf("%s: ioctl error %d\n", __FUNCTION__, errno);
-	}
+/* 	r = ioctl(fd, DECTSHIMIOCTL_INIT_CMD, &parm); */
+/* 	if (r != 0) { */
+/* 		printf("%s: ioctl error %d\n", __FUNCTION__, errno); */
+/* 	} */
 
-	close(fd);
+/* 	close(fd); */
   
-	printf("sizeof(ApiLinuxInitReqType): %d\n", sizeof(ApiLinuxInitReqType));
+/* 	printf("sizeof(ApiLinuxInitReqType): %d\n", sizeof(ApiLinuxInitReqType)); */
 
-	/* download the eeprom values to the DECT driver*/
-	t = (ApiLinuxInitReqType*) malloc(RSOFFSETOF(ApiLinuxInitReqType, Data) + DECT_NVS_SIZE);
-	t->Primitive = API_LINUX_INIT_REQ;
-	t->LengthOfData = DECT_NVS_SIZE;
-	nvs_get_data(t->Data);
+/* 	/\* download the eeprom values to the DECT driver*\/ */
+/* 	t = (ApiLinuxInitReqType*) malloc(RSOFFSETOF(ApiLinuxInitReqType, Data) + DECT_NVS_SIZE); */
+/* 	t->Primitive = API_LINUX_INIT_REQ; */
+/* 	t->LengthOfData = DECT_NVS_SIZE; */
+/* 	nvs_get_data(t->Data); */
 
-	write_dect(t, RSOFFSETOF(ApiLinuxInitReqType, Data) + DECT_NVS_SIZE);
+/* 	write_dect(t, RSOFFSETOF(ApiLinuxInitReqType, Data) + DECT_NVS_SIZE); */
 	
 
-	return r;
+/* 	return r; */
+	return 0;
 }
 
 
