@@ -295,7 +295,7 @@ int establish_connection(void) {
 	memset(&remote_addr, 0, sizeof(remote_addr));
 	remote_addr.sin_family = AF_INET;
 	remote_addr.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
-	remote_addr.sin_port = htonl(40713);
+	remote_addr.sin_port = htons(40713);
 	
 	if ((s = socket(AF_INET, SOCK_STREAM, 0)) == -1)
 		exit_failure("socket");
