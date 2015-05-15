@@ -518,14 +518,14 @@ static void register_handsets_start(void) {
 	
 	ApiFpMmSetRegistrationModeReqType m = { .Primitive = API_FP_MM_SET_REGISTRATION_MODE_REQ, .RegistrationEnabled = true, .DeleteLastHandset = false};
 
-	if (status.radio == ENABLED) {
+	/* if (status.radio == ENABLED) { */
 	  printf("register_handsets_start\n");
 	  status.reg_mode = ENABLED;
 	  call_hotplug(LED_BLINK);
 	  write_dect(&m, sizeof(m));
-	} else {
-	  printf("can't start regmode: radio not enabled\n");
-	}
+	/* } else { */
+	/*   printf("can't start regmode: radio not enabled\n"); */
+	/* } */
 }
 
 
