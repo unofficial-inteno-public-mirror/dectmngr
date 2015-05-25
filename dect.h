@@ -25,14 +25,11 @@ struct info {
 };
 
 
-typedef struct dect_state {
-	int reg_state;
-} dect_state;
-
-
 enum reg_state {
 	DISABLED,
+	DELAYED_START,
 	ENABLED,
+	AUTO,
 };
 
 
@@ -60,6 +57,7 @@ enum packet_type {
 	ZWITCH,
 	RADIO,
 	RELOAD_CONFIG,
+	BUTTON,
 };
 
 

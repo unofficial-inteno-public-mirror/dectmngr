@@ -65,6 +65,7 @@ void ApiBuildInfoElement(ApiInfoElementType **IeBlockPtr,
                          ApiIeType Ie,
                          rsuint8 IeLength,
                          rsuint8 *IeData);
+static void registration(struct bufferevent *bev, client_packet *p);
 
 int switch_state_on = 1;
 
@@ -144,6 +145,20 @@ static void call_hotplug(uint8_t action)
 }
 
 
+static void control_led(void)
+{
+	if(status.radio == ENABLED) {
+		if(status.reg_mode == ENABLED) {
+			call_hotplug(LED_BLINK);
+		} else {
+			call_hotplug(LED_ON);
+		}
+	} else {
+		call_hotplug(LED_OFF);
+	}
+}
+
+
 static void start_protocol(void)
 {
 	unsigned char o_buf[3];
@@ -156,8 +171,8 @@ static void start_protocol(void)
 	printf("API_FP_MM_START_PROTOCOL_REQ\n");
 	write_dect(o_buf, 3);
 
-	call_hotplug(LED_ON);
 	status.radio = ENABLED;
+	control_led();
 }
 
 
@@ -173,10 +188,79 @@ static void stop_protocol(void)
 	printf("API_FP_MM_STOP_PROTOCOL_REQ\n");
 	write_dect(o_buf, 3);
 
-	call_hotplug(LED_OFF);
 	status.radio = DISABLED;
+	control_led();
 }
 
+
+
+static void dect_radio(int enable) {
+	if (enable && status.radio == DISABLED) {
+		start_protocol();
+	} else if (!enable && status.radio == ENABLED) {
+		stop_protocol();
+	}
+}
+
+
+
+static void init_cfm(void) {
+
+	ApiFpCcFeaturesReqType *t = NULL;
+
+	t = (ApiFpCcFeaturesReqType*) malloc(sizeof(ApiFpCcFeaturesReqType));
+
+	t->Primitive = API_FP_CC_FEATURES_REQ;
+	t->ApiFpCcFeature = API_FP_CC_EXTENDED_TERMINAL_ID_SUPPORT;
+
+	write_dect(t, sizeof(ApiFpCcFeaturesReqType));
+	free(t);
+
+	status.dect_init = true;
+}
+
+
+
+/* Schedule for later to refresh the list of
+ * registered handsets. Used when we know the
+ * stack is busy working so we need a small delay. */
+static void list_handsets_schedule(void) {
+	struct event *timeout;
+	struct timeval tv;
+
+	tv.tv_sec = 1;
+	tv.tv_usec = 250000u;
+	timeout = event_new(base, -1, EV_TIMEOUT, (void *)init_cfm, NULL);
+	event_add(timeout, &tv);
+}
+
+
+static void list_handsets(void) {
+	
+  ApiFpMmGetRegistrationCountReqType m = { .Primitive = API_FP_MM_GET_REGISTRATION_COUNT_REQ, .StartTerminalId = 0};
+	printf("list_handsets\n");
+	write_dect(&m, sizeof(m));
+}
+
+
+/* When the radio is set to "auto" mode we turn
+ * it of if we have no registered handsets. */
+static void perhaps_disable_protocol(void) {
+	int handsetCount, i;
+
+	handsetCount = 0;
+	
+	// Is the radio in "auto" mode?
+	if(config.radio == AUTO) {
+		for(i = 0; i < MAX_NR_HANDSETS; i++) {
+			if(status.handset[i].registered) handsetCount++;
+		}
+
+		dect_radio(handsetCount > 0);
+	}
+
+	control_led();
+}
 
 
 static int load_cfg_file(void) {
@@ -191,10 +275,12 @@ static int load_cfg_file(void) {
   
   radio = ucix_get_option(uci_ctx, "dect", "dect", "radio");
   
-  if (!strcmp(radio, "1")) {
-    config.radio = true;
-  } else if (!strcmp(radio, "0")) {
-    config.radio = false;
+  if (!strcmp(radio, "on")) {
+    config.radio = ENABLED;
+  } else if (!strcmp(radio, "off")) {
+    config.radio = DISABLED;
+  } else if (!strcmp(radio, "auto")) {
+    config.radio = AUTO;
   } else {
     exit_failure("Bad config parameter\n");
   }
@@ -208,12 +294,14 @@ static void reload_config(void)
   load_cfg_file();
   
   /* Only start radio protocol if radio is enabled in config */
-  if (config.radio) {
-    start_protocol();
+  if (config.radio == ENABLED) {
+    dect_radio(1);
+    list_handsets_schedule();
+  } else if (config.radio == AUTO) {
+    init_cfm();
   } else {
-    stop_protocol();
+    dect_radio(0);
   }
-
 }
 
 
@@ -241,14 +329,6 @@ static send_client(struct bufferevent *bev, uint8_t status) {
 }
 
 
-
-
-static void list_handsets(void) {
-	
-  ApiFpMmGetRegistrationCountReqType m = { .Primitive = API_FP_MM_GET_REGISTRATION_COUNT_REQ, .StartTerminalId = 0};
-	printf("list_handsets\n");
-	write_dect(&m, sizeof(m));
-}
 
 
 static void ule_start(void) {
@@ -465,8 +545,11 @@ static void registration_count_cfm(unsigned char *mail) {
 		/* Get the ipui of the first handset. For some damn
 		   reason we can't to all of them at once. */
 		handset = ((ApiFpMmGetRegistrationCountCfmType*) mail)->TerminalId[0];
-		if (handset > 0)
+		if (handset > 0) {
 			get_handset_ipui(handset);
+		} else {
+			perhaps_disable_protocol();
+		}
 	}
 }
 
@@ -521,7 +604,7 @@ static void register_handsets_start(void) {
 	if (status.radio == ENABLED) {
 	  printf("register_handsets_start\n");
 	  status.reg_mode = ENABLED;
-	  call_hotplug(LED_BLINK);
+	  control_led();
 	  write_dect(&m, sizeof(m));
 	} else {
 	  printf("can't start regmode: radio not enabled\n");
@@ -599,34 +682,18 @@ static int dect_init(void)
 }
 
 
-static void init_cfm(void) {
-
-	ApiFpCcFeaturesReqType *t = NULL;
-
-	t = (ApiFpCcFeaturesReqType*) malloc(sizeof(ApiFpCcFeaturesReqType));
-
-	t->Primitive = API_FP_CC_FEATURES_REQ;
-	t->ApiFpCcFeature = API_FP_CC_EXTENDED_TERMINAL_ID_SUPPORT;
-
-	write_dect(t, sizeof(ApiFpCcFeaturesReqType));
-	free(t);
-
-	status.dect_init = true;
-}
-
-
 static void register_handsets_stop(void) {
 
 	ApiFpMmSetRegistrationModeReqType m = { .Primitive = API_FP_MM_SET_REGISTRATION_MODE_REQ, .RegistrationEnabled = false, .DeleteLastHandset = false};
 
 	status.reg_mode = DISABLED;
 
-	if (status.radio == ENABLED) {
+	if (status.radio == ENABLED ) {
 	  printf("register_handsets_stop\n");
-	  call_hotplug(LED_ON);
+	  control_led();
 	  write_dect(&m, sizeof(m));
 	} else {
-	  call_hotplug(LED_OFF);
+	  control_led();
 	}
 }
 
@@ -821,21 +888,50 @@ static void handset_ipui_cfm(unsigned char *mail) {
 		status.handset[handset - 1].ipui[i] = ((ApiFpMmGetHandsetIpuiCfmType *) mail)->IPUI[i];
 	 
 	/* Check if the next handset is also registeried */
-	if (status.handset[handset].registered == TRUE)
+	if (status.handset[handset].registered == TRUE) {
 		get_handset_ipui(handset + 1);
+	} else {
+		// Finished querying each handset
+		perhaps_disable_protocol();
+	}
 	
 }
 
 
+/* After the radio has been enabled, trigger
+ * start of registration. */
+static void registration_delayed_start(void) {
+	if(status.reg_mode == DELAYED_START) registration(NULL, NULL);
+}
+
+
+/* Start registration and arm a timer for possible timeout. */
 static void registration(struct bufferevent *bev, client_packet *p) {
 
-	struct timeval tv = {180,0};
+	struct timeval tv;
 	struct event *timeout;
-	
-	printf("enable registration\n");
-	register_handsets_start();
-	timeout = event_new(base, -1, EV_TIMEOUT, (void *)register_handsets_stop, NULL);
-	event_add(timeout, &tv);
+
+	if(config.radio == DISABLED) return;
+
+	// Enable the radio protocol if necessary
+	if(status.radio == DISABLED) {
+		printf("radio is off; registration delayed\n");
+		dect_radio(1);
+		status.reg_mode = DELAYED_START;
+		tv.tv_sec = 1;
+		tv.tv_usec = 0;
+		timeout = event_new(base, -1, EV_TIMEOUT, 
+			(void *)registration_delayed_start, NULL);
+		event_add(timeout, &tv);
+	} else if(status.reg_mode != ENABLED) {
+		printf("enable registration\n");
+		register_handsets_start();
+		tv.tv_sec = 180;
+		tv.tv_usec = 0;
+		timeout = event_new(base, -1, EV_TIMEOUT, 
+			(void *)register_handsets_stop, NULL);
+		event_add(timeout, &tv);
+	}
 }
 
 
@@ -846,6 +942,8 @@ static void ping_handset(int handset) {
 	
 	if (bad_handsetnr(handset))
 		return;
+
+	if(config.radio == DISABLED) return;
 
 	printf("ping_handset\n");
 	status.handset[handset - 1].pinging = TRUE;
@@ -949,16 +1047,6 @@ struct bufferevent *create_connection(int address, int port) {
 
 
 
-static void dect_radio(int enable) {
-
-  if (enable) {
-    start_protocol();
-  } else {
-    stop_protocol();
-  }
-  
-}
-
 static void init_status(void) {
 
 	memset(&status, 0, sizeof(status));
@@ -1012,7 +1100,6 @@ void packet_read(struct bufferevent *bev, void *ctx) {
 			/* Reset packet struct */
 			free(info->pkt);
 			info->pkt = calloc(sizeof(packet_t), 1);
-
 		} else
 			return;
 	}
@@ -1020,8 +1107,8 @@ void packet_read(struct bufferevent *bev, void *ctx) {
 
 
 void handle_dect_packet(unsigned char *buf) {
-
 	int i;
+
 	RosPrimitiveType primitive = ((ApifpccEmptySignalType *) buf)->Primitive;
 	struct packet *p = (struct packet *)buf;
 
@@ -1067,11 +1154,12 @@ void handle_dect_packet(unsigned char *buf) {
 	case API_FP_MM_HANDSET_PRESENT_IND:
 		printf("API_FP_MM_HANDSET_PRESENT_IND\n");
 		present_ind(buf);
-		list_handsets();
+if(status.reg_mode == DISABLED) init_cfm();
 		break;
 
 	case API_FP_MM_SET_REGISTRATION_MODE_CFM:
 		printf("API_FP_MM_SET_REGISTRATION_MODE_CFM\n");
+if(status.reg_mode == DISABLED) init_cfm();
 		break;
 
 	case API_FP_MM_GET_HANDSET_IPUI_CFM:
@@ -1087,6 +1175,7 @@ void handle_dect_packet(unsigned char *buf) {
 	case API_FP_MM_DELETE_REGISTRATION_CFM:
 		printf("API_FP_MM_DELETE_REGISTRATION_CFM\n");
 		delete_registration_cfm(buf);
+list_handsets_schedule();
 		break;
 
 	case API_FP_MM_REGISTRATION_COMPLETE_IND:
@@ -1113,8 +1202,8 @@ void handle_dect_packet(unsigned char *buf) {
 		printf("API_FP_CC_FEATURES_CFM\n");
 
 		/* Only start radio protocol if radio is enabled in config */
-		if (config.radio) {
-		  start_protocol();
+		if (config.radio == ENABLED) {
+		  dect_radio(1);
 		}
 		
 		list_handsets();
@@ -1176,7 +1265,6 @@ void handle_dect_packet(unsigned char *buf) {
 	}
 }
 
-
 void handle_client_packet(struct bufferevent *bev, client_packet *p) {
 
 	switch (p->type) {
@@ -1219,7 +1307,6 @@ void handle_client_packet(struct bufferevent *bev, client_packet *p) {
 	case LIST_HANDSETS:
 		printf("LIST_HANDSETS\n");
 		init_cfm();
-		list_handsets();
 		break;
 
 	case ULE_START:
@@ -1232,6 +1319,13 @@ void handle_client_packet(struct bufferevent *bev, client_packet *p) {
 		dect_init();
 		break;
 
+	case BUTTON:
+		printf("button %d\n", p->data);
+		if(p->data && (config.radio == ENABLED || 
+				config.radio == AUTO)) {
+			registration(bev, p);
+		}
+		break;
 
 	default:
 		printf("unknown packet\n");

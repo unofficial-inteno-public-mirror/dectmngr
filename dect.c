@@ -24,6 +24,7 @@
 #define F_ZWITCH       1 << 8
 #define F_RADIO        1 << 9
 #define F_RELOAD_CONFIG 1 << 10
+#define F_BUTTON       1 << 11
 
 
 
@@ -85,10 +86,11 @@ static void status_packet(struct status_packet *p) {
 	if (p->radio == ENABLED)
 		printf("radio: ENABLED\n");
 
+	if (p->radio == AUTO)
+		printf("radio: AUTO\n");
+
 	if (p->radio == DISABLED)
 		printf("radio: DISABLED\n");
-
-
 }
 
 
@@ -312,11 +314,12 @@ int main(int argc, char *argv[]) {
 
 	int s, c, handset = 0, switch_on = 0;
 	int flags = 0;
+	int buttonArg = 0;
 
 	s = establish_connection();
 
 	/* Parse command line options */
-	while ((c = getopt (argc, argv, "rd:p:sjluiz:x:c")) != -1) {
+	while ((c = getopt (argc, argv, "rd:p:sjluiz:x:cb:")) != -1) {
 		switch (c) {
 		case 'r':
 			flags |= F_ACTIVATE_REG;
@@ -361,6 +364,10 @@ int main(int argc, char *argv[]) {
 			flags |= F_INIT;
 			break;
 	
+		case 'b':
+			buttonArg = atoi(optarg);
+			flags |= F_BUTTON;
+			break;
 		}
 	}
 
@@ -423,6 +430,10 @@ int main(int argc, char *argv[]) {
 		send_packet(s, INIT, 0);
 	}
 
+	if (flags & F_BUTTON) {
+		printf("button %d\n", buttonArg);
+		send_packet(s, BUTTON, buttonArg);
+	}
 	
 	return 0;
 }
