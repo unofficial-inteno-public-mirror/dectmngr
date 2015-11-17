@@ -1,32 +1,41 @@
 #!/bin/sh
 
-if [ "$1" == "enable" ]; then
-    dectcalib -e
-elif [ "$1" == "disable" ]; then
-    dectcalib -d
+
+if [ -f "/etc/dect/dect_testmode.dat" -a -c "/dev/dectdbg" ]; then
+	# Attempt to increase Dect trb6 test mode success
+	# rate. As reported by bug #7574
+	killall -q -STOP asterisk
+	dect -i
+	sleep 2
+	cat "/etc/dect/dect_testmode.dat" >"/dev/dectdbg"
 else
-    printf "Usage: dect_testmode [ enable ] [ disable ]\n"
-    exit 1
+	if [ "$1" == "enable" ]; then
+		dectcalib -e
+	elif [ "$1" == "disable" ]; then
+		dectcalib -d
+	else
+		printf "Usage: dect_testmode [ enable ] [ disable ]\n"
+		exit 1
+	fi
+	
+	
+	# kill asteriskt and dectmngr before proxy since they bind to it
+	killall asterisk dectmngr dectproxy
+	rmmod dect
+	sleep 1
+	
+	#load kernel module
+	insmod /lib/modules/3.4.11-rt19/extra/dect.ko
+	sleep 1
+	
+	#start dectproxy & mngr
+	dectproxy > /dev/dectproxy 2>&1 &
+	sleep 1
+	dectmngr > /tmp/dectmngr 2>&1 &
+	
+	#initialize stack
+	sleep 1
+	dect -i
 fi
-
-
-# kill asteriskt and dectmngr before proxy since they bind to it
-killall asterisk dectmngr dectproxy
-rmmod dect
-sleep 1
-
-#load kernel module
-insmod /lib/modules/3.4.11-rt19/extra/dect.ko
-sleep 1
-
-#start dectproxy & mngr
-dectproxy > /dev/dectproxy 2>&1 &
-sleep 1
-dectmngr > /tmp/dectmngr 2>&1 &
-
-#initialize stack
-sleep 1
-dect -i
-
 
 
