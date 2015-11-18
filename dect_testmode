@@ -2,11 +2,9 @@
 
 
 if [ -f "/etc/dect/dect_testmode.dat" -a -c "/dev/dectdbg" ]; then
-	# Attempt to increase Dect trb6 test mode success
-	# rate. As reported by bug #7574
+	dect -x 1
+	sleep 1
 	killall -q -STOP asterisk
-	dect -i
-	sleep 2
 	cat "/etc/dect/dect_testmode.dat" >"/dev/dectdbg"
 else
 	if [ "$1" == "enable" ]; then
