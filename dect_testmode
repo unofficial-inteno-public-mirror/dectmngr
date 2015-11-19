@@ -1,11 +1,49 @@
 #!/bin/sh
 
 
-if [ -f "/etc/dect/dect_testmode.dat" -a -c "/dev/dectdbg" ]; then
+if false; then
+	# Wait for asterisk to init Dect stack
+	until pidof asterisk >/dev/null; do
+		echo "Waiting for bootup to finish..."
+		sleep 1
+	done
+	
+	until logread | grep -q "dectshim open device"; do
+		echo "Waiting for bootup to finish..."
+		sleep 1
+	done
+	
+	killall -q dectdbgd
+	sleep 2
+	
+	# Enable radio
 	dect -x 1
 	sleep 1
+	
+	# Don't let asterisk disturb us
 	killall -q -STOP asterisk
+	
+	# Enable test mode
 	cat "/etc/dect/dect_testmode.dat" >"/dev/dectdbg"
+	sleep 1
+	
+	
+	if logread | grep -q "dect: Test Mode Enabled"; then
+		echo "Dect test mode enabled"
+	
+		# Flash box led
+		ubus call led.dect set '{ "state": "alert" }'
+	
+		# Dectmanager should not do anything from now on
+		killall -q -STOP dectmngr
+	
+		exit 0
+	else
+		echo "Failed enabling dect test"
+		exit 1
+	fi
+
+
 else
 	if [ "$1" == "enable" ]; then
 		dectcalib -e
@@ -18,7 +56,8 @@ else
 	
 	
 	# kill asteriskt and dectmngr before proxy since they bind to it
-	killall asterisk dectmngr dectproxy
+	/etc/init.d/asterisk stop
+	/etc/init.d/dect stop
 	rmmod dect
 	sleep 1
 	
@@ -27,12 +66,10 @@ else
 	sleep 1
 	
 	#start dectproxy & mngr
-	dectproxy > /dev/dectproxy 2>&1 &
-	sleep 1
-	dectmngr > /tmp/dectmngr 2>&1 &
+	/etc/init.d/dect start
 	
 	#initialize stack
-	sleep 1
+	sleep 2
 	dect -i
 fi
 
