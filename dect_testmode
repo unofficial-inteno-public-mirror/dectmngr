@@ -56,8 +56,9 @@ else
 	
 	
 	# kill asteriskt and dectmngr before proxy since they bind to it
-	/etc/init.d/asterisk stop
-	/etc/init.d/dect stop
+	/etc/init.d/asterisk stop 2>/dev/null
+	/etc/init.d/dect stop 2>/dev/null
+	killall -q dectproxy dectmngr
 	rmmod dect
 	sleep 1
 	
@@ -66,7 +67,7 @@ else
 	sleep 1
 	
 	#start dectproxy & mngr
-	/etc/init.d/dect start
+	/etc/init.d/dect start 2>/dev/null
 	
 	#initialize stack
 	sleep 2
