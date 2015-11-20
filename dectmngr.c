@@ -1341,6 +1341,7 @@ static void run(void) {
 	evutil_socket_t listener;
 	struct sockaddr_in sin;
 	struct event *listener_event;
+	int opt;
 
 	/* Init status */
 	init_status();
@@ -1361,6 +1362,11 @@ static void run(void) {
 
 	listener = socket(AF_INET, SOCK_STREAM, 0);
 	evutil_make_socket_nonblocking(listener);
+
+	opt = 1;
+	if ((setsockopt(listener, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt))) == -1) {
+		exit_failure("setsockopt");
+	}
 
 	if (bind(listener, (struct sockaddr*)&sin, sizeof(sin)) < 0) {
 		perror("bind");

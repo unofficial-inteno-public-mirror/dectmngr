@@ -81,6 +81,11 @@ int main(void)
 	if ((l = socket(AF_INET, SOCK_STREAM, 0)) == -1)
 		exit_failure("socket");
 	
+	i = 1;
+	if ((setsockopt(l, SOL_SOCKET, SO_REUSEADDR, &i, sizeof(i))) == -1) {
+		exit_failure("setsockopt");
+	}
+
 	if (bind(l, (struct sockaddr *) &my_addr, sizeof(struct sockaddr)) == -1)
 		exit_failure("bind");
 	
